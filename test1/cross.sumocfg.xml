@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <input>
+        <net-file value="cross.net.xml"/>
+        <route-files value="cross.rou.xml"/>
+    </input>
+    <time>
+        <begin value="0"/>
+        <end value="10000"/>
+    </time>
+    <processing>
+        <step-length value="0.1"/>
+        <time-to-teleport value="-1"/>
+    </processing>
+    <report>
+        <verbose value="true"/>
+        <no-step-log value="true"/>
+    </report>
+    <gui_only>
+        <gui-settings-file value="viewsettings.xml"/>
+    </gui_only>
+</configuration>

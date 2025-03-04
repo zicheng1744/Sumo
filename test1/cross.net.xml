@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<net version="1.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+    <location netOffset="0,0" convBoundary="0,0,500,500" origBoundary="0,0,500,500" projParameter="!"/>
+
+    <!-- 节点定义 -->
+    <junction id="center" x="250" y="250" type="priority" />
+    <junction id="north" x="250" y="500" type="dead_end" />
+    <junction id="south" x="250" y="0" type="dead_end" />
+    <junction id="east" x="500" y="250" type="dead_end" />
+    <junction id="west" x="0" y="250" type="dead_end" />
+
+    <!-- 道路定义（每条路2车道） -->
+    <edge id="north_in" from="north" to="center" priority="1">
+        <lane id="north_in_0" index="0" speed="15" length="250" />
+        <lane id="north_in_1" index="1" speed="15" length="250" />
+    </edge>
+    <edge id="south_in" from="south" to="center" priority="1">
+        <lane id="south_in_0" index="0" speed="15" length="250" />
+        <lane id="south_in_1" index="1" speed="15" length="250" />
+    </edge>
+    <edge id="east_in" from="east" to="center" priority="1">
+        <lane id="east_in_0" index="0" speed="15" length="250" />
+        <lane id="east_in_1" index="1" speed="15" length="250" />
+    </edge>
+    <edge id="west_in" from="west" to="center" priority="1">
+        <lane id="west_in_0" index="0" speed="15" length="250" />
+        <lane id="west_in_1" index="1" speed="15" length="250" />
+    </edge>
+
+    <!-- 连接定义（允许直行和右转） -->
+    <connection from="north_in" to="south_in" fromLane="0" toLane="0" dir="s" />
+    <connection from="north_in" to="east_in" fromLane="1" toLane="1" dir="r" />
+    <connection from="south_in" to="north_in" fromLane="0" toLane="0" dir="s" />
+    <connection from="south_in" to="west_in" fromLane="1" toLane="1" dir="r" />
+    <connection from="east_in" to="west_in" fromLane="0" toLane="0" dir="s" />
+    <connection from="east_in" to="north_in" fromLane="1" toLane="1" dir="r" />
+    <connection from="west_in" to="east_in" fromLane="0" toLane="0" dir="s" />
+    <connection from="west_in" to="south_in" fromLane="1" toLane="1" dir="r" />
+</net>
