@@ -27,13 +27,31 @@
         <lane id="west_in_1" index="1" speed="15" length="250" />
     </edge>
 
+    <!-- 出口道路定义 -->
+    <edge id="north_out" from="center" to="north" priority="1">
+        <lane id="north_out_0" index="0" speed="15" length="250" />
+        <lane id="north_out_1" index="1" speed="15" length="250" />
+    </edge>
+    <edge id="south_out" from="center" to="south" priority="1">
+        <lane id="south_out_0" index="0" speed="15" length="250" />
+        <lane id="south_out_1" index="1" speed="15" length="250" />
+    </edge>
+    <edge id="east_out" from="center" to="east" priority="1">
+        <lane id="east_out_0" index="0" speed="15" length="250" />
+        <lane id="east_out_1" index="1" speed="15" length="250" />
+    </edge>
+    <edge id="west_out" from="center" to="west" priority="1">
+        <lane id="west_out_0" index="0" speed="15" length="250" />
+        <lane id="west_out_1" index="1" speed="15" length="250" />
+    </edge>
+
     <!-- 连接定义（允许直行和右转） -->
-    <connection from="north_in" to="south_in" fromLane="0" toLane="0" dir="s" />
-    <connection from="north_in" to="east_in" fromLane="1" toLane="1" dir="r" />
-    <connection from="south_in" to="north_in" fromLane="0" toLane="0" dir="s" />
-    <connection from="south_in" to="west_in" fromLane="1" toLane="1" dir="r" />
-    <connection from="east_in" to="west_in" fromLane="0" toLane="0" dir="s" />
-    <connection from="east_in" to="north_in" fromLane="1" toLane="1" dir="r" />
-    <connection from="west_in" to="east_in" fromLane="0" toLane="0" dir="s" />
-    <connection from="west_in" to="south_in" fromLane="1" toLane="1" dir="r" />
+    <connection from="north_in" to="south_out" fromLane="0" toLane="0" dir="s" />
+    <connection from="north_in" to="east_out" fromLane="1" toLane="1" dir="r" />
+    <connection from="south_in" to="north_out" fromLane="0" toLane="0" dir="s" />
+    <connection from="south_in" to="west_out" fromLane="1" toLane="1" dir="r" />
+    <connection from="east_in" to="west_out" fromLane="0" toLane="0" dir="s" />
+    <connection from="east_in" to="north_out" fromLane="1" toLane="1" dir="r" />
+    <connection from="west_in" to="east_out" fromLane="0" toLane="0" dir="s" />
+    <connection from="west_in" to="south_out" fromLane="1" toLane="1" dir="r" />
 </net>
