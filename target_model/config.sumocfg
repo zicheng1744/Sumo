@@ -1,0 +1,33 @@
+<?xml version="1.21" encoding="UTF-8"?>
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="highway_merge.net.xml"/>
+        <route-files value="routes.rou.xml"/>
+        <route-steps value="0"/>
+    </input>
+    <output>
+        <tripinfo-output value="tripinfo.xml"/>
+    </output>
+    <time>
+        <begin value="0"/>
+        <step-length value="0.1"/>
+    </time>
+    
+    <processing>
+        <collision.mingap-factor value="0.1"/>
+        <collision.action value="warn"/>
+        <collision.stoptime value="1"/>
+        <ignore-route-errors value="true"/>
+        <extrapolate-departpos value="true"/>
+        <S value="false"/>
+        <Q value="true"/>
+    </processing>
+
+    <report>
+        <verbose value="false"/>
+        <no-step-log value="true"/>
+    </report>
+
+</configuration>
