@@ -9,6 +9,12 @@ import traci
 from gym import spaces
 from gym.spaces import Box
 import time
+import logging
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class SumoMergeEnv:
@@ -16,6 +22,7 @@ class SumoMergeEnv:
         # 初始化SUMO连接
         self.sumo_cmd = ["sumo", "-c", cfg_path]
         self.sumo_conn = None
+        logging.info("初始化SUMO环境...")
         self.reset()
 
         # 环境参数设置
@@ -29,39 +36,81 @@ class SumoMergeEnv:
         self.action_space = Box(low=-3, high=3, shape=(1,))  # 加速度控制范围
 
         # 获取CAV车辆ID列表
-        self.cav_ids = [v for v in traci.vehicle.getIDList() if "CAV" in v]
+        self.cav_ids = []
+        for v_id in traci.vehicle.getIDList():
+            try:
+                v_type = traci.vehicle.getTypeID(v_id)
+                if v_type == "CAV":
+                    self.cav_ids.append(v_id)
+                    logging.info(f"检测到CAV车辆: {v_id}")
+            except Exception as e:
+                logging.warning(f"获取车辆 {v_id} 类型失败: {e}")
+
+        logging.info(f"初始化完成，检测到CAV车辆数量: {len(self.cav_ids)}")
 
     def _get_observations(self):
         """获取CAV车辆的状态信息"""
         if not self.cav_ids:
+            logging.warning("未检测到CAV车辆！")
+            logging.info(f"当前所有车辆ID: {traci.vehicle.getIDList()}")
+            return np.zeros(6)
+
+        # 添加安全校验
+        try:
+            ego_id = self.cav_ids[0]
+            logging.debug(f"当前控制车辆ID: {ego_id}")
+        except IndexError:
+            logging.error("CAV车辆列表异常！")
+            logging.error(f"当前CAV列表: {self.cav_ids}")
             return np.zeros(6)
 
         # 获取主车信息
-        ego_id = self.cav_ids[0]
-        ego_speed = traci.vehicle.getSpeed(ego_id)
-        ego_pos = traci.vehicle.getPosition(ego_id)
+        try:
+            ego_speed = traci.vehicle.getSpeed(ego_id)
+            ego_pos = traci.vehicle.getPosition(ego_id)
+            logging.debug(f"车辆 {ego_id} 速度: {ego_speed:.2f}, 位置: {ego_pos}")
+        except Exception as e:
+            logging.error(f"获取车辆信息失败: {e}")
+            return np.zeros(6)
 
         # 获取周围车辆信息
-        leader_id = traci.vehicle.getLeader(ego_id, 100)
-        follower_id = traci.vehicle.getFollower(ego_id, 100)
+        try:
+            leader_id = traci.vehicle.getLeader(ego_id, 100)
+            follower_id = traci.vehicle.getFollower(ego_id, 100)
 
-        if leader_id:
-            leader_speed = traci.vehicle.getSpeed(leader_id[0])
-            leader_dist = leader_id[1]
-        else:
-            leader_speed = 0
-            leader_dist = 100
+            if leader_id and leader_id[0]:  # 确保leader_id[0]不为空
+                leader_speed = traci.vehicle.getSpeed(leader_id[0])
+                leader_dist = leader_id[1]
+                logging.debug(
+                    f"前车ID: {leader_id[0]}, 距离: {leader_dist:.2f}, 速度: {leader_speed:.2f}"
+                )
+            else:
+                leader_speed = 0
+                leader_dist = 100
+                logging.debug("未检测到前车")
 
-        if follower_id:
-            follower_speed = traci.vehicle.getSpeed(follower_id[0])
-            follower_dist = follower_id[1]
-        else:
-            follower_speed = 0
-            follower_dist = 100
+            if follower_id and follower_id[0]:  # 确保follower_id[0]不为空
+                follower_speed = traci.vehicle.getSpeed(follower_id[0])
+                follower_dist = follower_id[1]
+                logging.debug(
+                    f"后车ID: {follower_id[0]}, 距离: {follower_dist:.2f}, 速度: {follower_speed:.2f}"
+                )
+            else:
+                follower_speed = 0
+                follower_dist = 100
+                logging.debug("未检测到后车")
+        except Exception as e:
+            logging.error(f"获取周围车辆信息失败: {e}")
+            return np.zeros(6)
 
         # 获取车道信息
-        current_lane = traci.vehicle.getLaneID(ego_id)
-        target_lane = "mc_1" if current_lane == "mc_0" else "mc_0"
+        try:
+            current_lane = traci.vehicle.getLaneID(ego_id)
+            target_lane = "mc_1" if current_lane == "mc_0" else "mc_0"
+            logging.debug(f"当前车道: {current_lane}, 目标车道: {target_lane}")
+        except Exception as e:
+            logging.error(f"获取车道信息失败: {e}")
+            return np.zeros(6)
 
         return np.array(
             [
@@ -140,20 +189,56 @@ class SumoMergeEnv:
 
     def reset(self):
         """重置环境"""
+        logging.info("开始重置环境...")
         if traci.isLoaded():
+            logging.info("关闭现有SUMO连接...")
             traci.close()
             sys.stdout.flush()
-            time.sleep(0.5)  # 增加关闭等待时间
+            time.sleep(0.5)
 
-        # 启动新连接
         try:
+            logging.info("启动新的SUMO进程...")
             self.sumo_conn = traci.start(self.sumo_cmd)
-            traci.simulationStep()  # 推进初始步
-            self.cav_ids = [v for v in traci.vehicle.getIDList() if "CAV" in v]
+
+            # 增加初始化步骤（推进3步保证车辆生成）
+            logging.info("执行初始化仿真步骤...")
+            for i in range(3):
+                traci.simulationStep()
+                logging.debug(f"完成第 {i+1} 步初始化")
+
+            # 获取所有车辆ID
+            all_vehicles = traci.vehicle.getIDList()
+            logging.info(f"当前所有车辆ID: {all_vehicles}")
+
+            # 获取CAV车辆列表（修改识别逻辑）
+            self.cav_ids = []
+            for v_id in all_vehicles:
+                try:
+                    v_type = traci.vehicle.getTypeID(v_id)
+                    if v_type == "CAV":
+                        self.cav_ids.append(v_id)
+                        logging.info(f"检测到CAV车辆: {v_id}")
+                except Exception as e:
+                    logging.warning(f"获取车辆 {v_id} 类型失败: {e}")
+
+            logging.info(f"检测到CAV车辆数量: {len(self.cav_ids)}")
+
+            # 添加车辆存在性检查
+            if not self.cav_ids:
+                logging.error("初始化后未发现CAV车辆！")
+                logging.error("可能原因：")
+                logging.error("1. routes.rou.xml中车辆类型未设置'CAV'")
+                logging.error("2. 车辆生成时间设置过晚")
+                logging.error(f"当前所有车辆ID: {all_vehicles}")
+                sys.exit(1)
+            else:
+                logging.info(f"CAV车辆ID列表: {self.cav_ids}")
+
         except Exception as e:
-            print(f"连接失败: {e}")
+            logging.error(f"环境重置失败: {e}")
             sys.exit(1)
 
+        logging.info("环境重置完成")
         return self._get_observations()
 
 
@@ -198,11 +283,14 @@ class PPO:
         states = torch.FloatTensor(states)
         actions = torch.FloatTensor(actions)
         old_log_probs = torch.FloatTensor(old_log_probs)
+        rewards = torch.FloatTensor(rewards)  # 转换为PyTorch tensor
+        next_states = torch.FloatTensor(next_states)
+        dones = torch.FloatTensor(dones)  # 转换为PyTorch tensor
 
         # 计算优势函数
         with torch.no_grad():
             _, values = self.policy(states)
-            _, next_values = self.policy(torch.FloatTensor(next_states))
+            _, next_values = self.policy(next_states)
             advantages = self._compute_gae(rewards, values, next_values, dones)
 
         # 计算新的动作概率
