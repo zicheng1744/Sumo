@@ -1,0 +1,6 @@
+***Starting server on port 3072 ***
+Loading net-file from 'highway_merge.net.xml' ... done (5ms).
+Loading done.
+Simulation version 1.21.0 started with time: 0.00.
+Error: tcpip::Socket::recvAndCheck @ recv: Socket reset by peer
+Quitting (on error).

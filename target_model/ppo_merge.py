@@ -344,7 +344,7 @@ def train():
     env = SumoMergeEnv()
     agent = PPO(state_dim=6, action_dim=1)
 
-    for episode in range(1000):
+    for episode in range(100):  # 减少模拟次数到100
         state = env.reset()
         episode_reward = 0
         states, actions, log_probs, rewards, next_states, dones = [], [], [], [], [], []
