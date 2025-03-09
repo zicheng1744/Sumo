@@ -7,7 +7,7 @@ def test_traci_connection():
     """测试TraCI连接"""
     try:
         # 启动SUMO
-        sumo_cmd = ["sumo", "-c", "config.sumocfg"]
+        sumo_cmd = ["sumo", "-c", "target_model/input_sources/config.sumocfg"]
         traci.start(sumo_cmd)
 
         # 执行一个仿真步骤

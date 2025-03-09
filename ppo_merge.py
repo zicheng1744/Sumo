@@ -18,9 +18,11 @@ logging.basicConfig(
 
 
 class SumoMergeEnv:
-    def __init__(self, cfg_path="config.sumocfg"):
+    def __init__(self, cfg_path="config.sumocfg", gui=False):
         # 初始化SUMO连接
-        self.sumo_cmd = ["sumo", "-c", cfg_path]
+        self.sumo_cmd = (
+            ["sumo-gui", "-c", cfg_path] if gui else ["sumo", "-c", cfg_path]
+        )
         self.sumo_conn = None
         logging.info("初始化SUMO环境...")
         self.reset()
@@ -339,36 +341,29 @@ class PPO:
         return advantages
 
 
-def train():
-    """训练主循环"""
-    env = SumoMergeEnv()
-    agent = PPO(state_dim=6, action_dim=1)
+def create_sumo_env(gui=False):
+    """创建并返回带gui可视化选项的SUMO环境"""
+    return SumoMergeEnv(cfg_path="config.sumocfg", gui=gui)
 
-    for episode in range(100):  # 减少模拟次数到100
+
+def train_ppo(env):
+    """训练主循环"""
+    agent = PPO(state_dim=6, action_dim=1)
+    for episode in range(100):
         state = env.reset()
         episode_reward = 0
         states, actions, log_probs, rewards, next_states, dones = [], [], [], [], [], []
-
         for step in range(env.episode_length):
-            # 选择动作
             action, log_prob = agent.select_action(state)
-
-            # 执行动作
             next_state, reward, done, _ = env.step(action)
-
-            # 存储经验
             states.append(state)
             actions.append(action)
             log_probs.append(log_prob)
             rewards.append(reward)
             next_states.append(next_state)
             dones.append(done)
-
-            # 更新状态
             state = next_state
             episode_reward += reward
-
-            # 如果结束则更新策略
             if done or step == env.episode_length - 1:
                 loss = agent.update(
                     np.array(states),
@@ -385,4 +380,5 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    env = create_sumo_env(gui=True)
+    train_ppo(env)
