@@ -279,6 +279,7 @@ class SumoMergeEnv:
         try:
             # 生成新的随机车流
             route_path = self.generate_routefile()
+            self._update_config_file(self.cfg_path)
 
             # 获取SUMO配置文件的绝对路径
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -387,10 +388,24 @@ class SumoMergeEnv:
                 if route_files is not None:
                     route_files.set("value", route_rel_path)
                     logging.info(f"已更新配置文件中的路由文件路径为: {route_rel_path}")
-                    tree.write(cfg_path)
-                    return
 
-            logging.error("未在配置文件中找到route-files元素")
+            # 新增：更新输出文件夹为output_sources
+            output_tag = root.find(".//output")
+            if output_tag is not None:
+                for key in [
+                    "summary-output",
+                    "tripinfo-output",
+                    "vehroute-output",
+                    "statistic-output",
+                    "log",
+                ]:
+                    element = output_tag.find(key)
+                    if element is not None:
+                        filename = os.path.basename(element.get("value", ""))
+                        element.set("value", f"output_sources/{filename}")
+                        logging.info(f"已更新{key}位置: output_sources/{filename}")
+
+            tree.write(cfg_path)
         except Exception as e:
             logging.error(f"更新配置文件失败: {e}")
 
@@ -453,8 +468,24 @@ def update_config_file(cfg_path):
             if route_files is not None:
                 route_files.set("value", "routes.rou.xml")
                 logging.info(f"已更新配置文件中的路由文件路径为: routes.rou.xml")
-                tree.write(cfg_path)
-                return
+
+        # 新增：更新输出文件夹为output_sources
+        output_tag = root.find(".//output")
+        if output_tag is not None:
+            for key in [
+                "summary-output",
+                "tripinfo-output",
+                "vehroute-output",
+                "statistic-output",
+                "log",
+            ]:
+                element = output_tag.find(key)
+                if element is not None:
+                    filename = os.path.basename(element.get("value", ""))
+                    element.set("value", f"output_sources/{filename}")
+                    logging.info(f"已更新{key}位置: output_sources/{filename}")
+
+        tree.write(cfg_path)
     except Exception as e:
         logging.error(f"更新配置文件失败: {e}")
 
