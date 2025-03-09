@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2025-03-09 22:03:33 by Eclipse SUMO GUI Version 1.21.0
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="c:\Users\18576\Sumo\target_model\input_sources\highway_merge.net.xml"/>
+        <route-files value="c:\Users\18576\Sumo\target_model\input_sources\routes.rou.xml"/>
+    </input>
+
+    <output>
+        <summary-output value="c:\Users\18576\Sumo\target_model\input_sources\summary.xml"/>
+        <tripinfo-output value="c:\Users\18576\Sumo\target_model\input_sources\tripinfo.xml"/>
+        <vehroute-output value="c:\Users\18576\Sumo\target_model\input_sources\vehroute.xml"/>
+        <statistic-output value="c:\Users\18576\Sumo\target_model\input_sources\statistics.xml"/>
+    </output>
+
+    <time>
+        <begin value="0"/>
+        <end value="5000"/>
+        <step-length value="0.1"/>
+    </time>
+
+    <processing>
+        <extrapolate-departpos value="true"/>
+        <route-steps value="100"/>
+        <ignore-route-errors value="true"/>
+        <collision.action value="warn"/>
+        <collision.stoptime value="1"/>
+        <collision.mingap-factor value="0.1"/>
+        <time-to-teleport value="-1"/>
+    </processing>
+
+    <report>
+        <verbose value="true"/>
+        <log value="c:\Users\18576\Sumo\target_model\input_sources\simulation.log"/>
+        <no-step-log value="false"/>
+    </report>
+
+    <traci_server>
+        <remote-port value="21780"/>
+    </traci_server>
+
+    <gui_only>
+        <quit-on-end value="true"/>
+        <start value="false"/>
+    </gui_only>
+
+</sumoConfiguration>
+-->
+
+<summary xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/summary_file.xsd">
+</summary>
