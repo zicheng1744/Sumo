@@ -16,9 +16,13 @@ def train_ppo(env):
     agent = PPO(state_dim=6, action_dim=1)
 
     try:
+        # 训练100个episode
         for episode in range(100):
+            # 重置环境
             state = env.reset()
+            # 记录每个episode的总奖励
             episode_reward = 0
+            # 初始化数据列表
             states, actions, log_probs, rewards, next_states, dones = (
                 [],
                 [],
@@ -29,6 +33,7 @@ def train_ppo(env):
             )
 
             for step in range(env.episode_length):
+                # 选择动作
                 action, log_prob = agent.select_action(state)
                 next_state, reward, done, _ = env.step(action)
 

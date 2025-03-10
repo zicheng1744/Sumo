@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import traci
 from gym.spaces import Box
-import random  # 添加random模块用于随机数生成
 
 # 配置日志，增加文件处理器
 logging.basicConfig(
@@ -56,6 +55,7 @@ class SumoMergeEnv:
             "decel": 5.0,  # 减速度
         }
 
+    # 获取观测值
     def _get_observations(self):
         if not self.cav_ids:
             logging.warning("未检测到CAV车辆！")
@@ -130,6 +130,7 @@ class SumoMergeEnv:
         if not self.cav_ids:
             return
 
+        # 控制了每一辆车的速度
         ego_id = self.cav_ids[0]
         current_speed = traci.vehicle.getSpeed(ego_id)
         new_speed = current_speed + action[0]
@@ -201,82 +202,6 @@ class SumoMergeEnv:
             self.reset()
             return np.zeros(6), 0, True, {"error": str(e)}
 
-    def generate_routefile(self):
-        """生成随机车流的路由文件"""
-        logging.info("生成随机车流路由文件...")
-        probs = self.vehicle_params["probs"]
-        speed = self.vehicle_params["speed"]
-        N = self.vehicle_params["num_vehicles"]
-        accel = self.vehicle_params["accel"]
-        decel = self.vehicle_params["decel"]
-
-        # 获取当前工作目录，确保路径正确
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        route_file_path = os.path.join(current_dir, "input_sources", "routes.rou.xml")
-
-        # 确保目录存在
-        os.makedirs(os.path.dirname(route_file_path), exist_ok=True)
-
-        vehNr = 0  # 初始化车辆编号
-
-        with open(route_file_path, "w") as routes:
-            print(
-                f"""<routes>
-    <vType id="CAV" accel="{accel}" decel="{decel}" sigma="0.0" length="5" minGap="0.8" tau="0.5" maxSpeed="{speed}" carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0"/>
-    <vType id="HDV" accel="{accel}" decel="{decel}" sigma="0.5" length="5" minGap="2.5" tau="1.2" maxSpeed="{speed}" desiredMaxSpeed="{speed}" speedFactor="normc(1,0.2,0.2,2)" carFollowingModel="Krauss" lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5"/>
-    <route id="main" edges="wm mc ce" />
-    <route id="ramp" edges="rm mc ce" />
-            """,
-                file=routes,
-            )
-
-            lam1 = probs["main"]
-            lam2 = probs["ramp"]
-            lam3 = probs["CAV"]
-
-            # 添加初始车辆以确保仿真开始时有车辆
-            print(
-                f'    <vehicle id="main_0" type="CAV" route="main" depart="0" color="1,0,0" />',
-                file=routes,
-            )
-            print(
-                f'    <vehicle id="ramp_0" type="CAV" route="ramp" depart="0" color="1,0,0" />',
-                file=routes,
-            )
-            vehNr = 2  # 已有两辆车
-
-            for i in range(N):
-                if random.uniform(0, 1) < lam1:  # 主路车辆泊松分布
-                    vehNr += 1
-                    if random.uniform(0, 1) < lam3:  # CAV 车辆泊松分布
-                        print(
-                            f'    <vehicle id="main_{vehNr}" type="CAV" route="main" depart="{i * 0.5}" color="1,0,0" />',
-                            file=routes,
-                        )
-                    else:
-                        hdv_depart_speed = random.uniform(0.8 * speed, speed)
-                        print(
-                            f'    <vehicle id="main_{vehNr}" type="HDV" route="main" depart="{i * 0.5}" departSpeed="{hdv_depart_speed}" />',
-                            file=routes,
-                        )
-                if random.uniform(0, 1) < lam2:  # 支路车辆泊松分布
-                    vehNr += 1
-                    if random.uniform(0, 1) < lam3:
-                        print(
-                            f'    <vehicle id="ramp_{vehNr}" type="CAV" route="ramp" depart="{i * 0.5}" color="1,0,0" />',
-                            file=routes,
-                        )
-                    else:
-                        hdv_depart_speed = random.uniform(0.8 * speed, speed)
-                        print(
-                            f'    <vehicle id="ramp_{vehNr}" type="HDV" route="ramp" depart="{i * 0.5}" departSpeed="{hdv_depart_speed}" />',
-                            file=routes,
-                        )
-            print("</routes>", file=routes)
-
-        logging.info(f"路由文件已生成: {route_file_path}")
-        return route_file_path
-
     def reset(self):
         """重置环境"""
         logging.info("开始重置环境...")
@@ -284,8 +209,6 @@ class SumoMergeEnv:
         self.close()
 
         try:
-            # 生成新的随机车流
-            route_path = self.generate_routefile()
 
             # 获取SUMO配置文件的绝对路径
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -318,21 +241,31 @@ class SumoMergeEnv:
             # 等待连接稳定
             time.sleep(1.0)  # 增加等待时间
 
-            # 增加初始化步骤（增加到10步以确保有车辆生成）
+            # 初始化步骤
             logging.info("执行初始化仿真步骤...")
-            for i in range(10):  # 从5步增加到10步
+            i = 0
+            while True:
                 traci.simulationStep()
-                if i % 2 == 0:  # 每隔两步记录一次
-                    vehicles = traci.vehicle.getIDList()
+                vehicles = traci.vehicle.getIDList()
+                if vehicles:  # 检测到车辆后退出
                     logging.info(
                         f"步骤 {i}: 车辆数量 {len(vehicles)}, 车辆ID: {vehicles}"
                     )
+                    break  # 退出循环
+                if i % 5 == 0:  # 每隔五步记录一次
+                    logging.info(
+                        f"步骤 {i}: 车辆数量 {len(vehicles)}, 车辆ID: {vehicles}"
+                    )
+                i += 1
+                if i >= 50:  # 防止无限循环，最多执行20步
+                    logging.warning("在50步内未检测到车辆")
+                    break
 
             # 获取所有车辆ID
             all_vehicles = traci.vehicle.getIDList()
             logging.info(f"当前所有车辆ID: {all_vehicles}")
 
-            # 获取CAV车辆列表（修改识别逻辑）
+            # 获取CAV车辆列表
             self.cav_ids = []
             hdv_ids = []
             for v_id in all_vehicles:
@@ -376,8 +309,11 @@ class SumoMergeEnv:
     def _update_config_file(self, cfg_path):
         """更新配置文件，确保路由文件路径正确"""
         try:
+            # 使用相对路径
             import xml.etree.ElementTree as ET
 
+            # 读取配置文件
+            # tree是ElementTree对象，root是根元素
             tree = ET.parse(cfg_path)
             root = tree.getroot()
 
