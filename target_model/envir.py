@@ -16,7 +16,10 @@ logging.basicConfig(
 
 
 class SumoMergeEnv:
+    # 初始化环境
     def __init__(self, cfg_path="target_model/input_sources/config.sumocfg", gui=False):
+        # 输入参数：cfg_path是SUMO配置文件的路径，gui是是否使用GUI
+        # sumo_cmd是启动SUMO的命令，sumo_conn是SUMO连接，cfg_path是配置文件路径，gui是是否使用GUI
         self.sumo_cmd = (
             ["sumo-gui", "-c", cfg_path] if gui else ["sumo", "-c", cfg_path]
         )
@@ -30,17 +33,21 @@ class SumoMergeEnv:
             logging.error(f"配置文件不存在: {cfg_path}")
             raise FileNotFoundError(f"配置文件不存在: {cfg_path}")
 
+        # 初始化环境参数
+        # episode_length是每个episode的最大步数，current_step是当前步数
         self.episode_length = 1000
         self.current_step = 0
 
+        # 观测空间和动作空间
+        # 观测空间是一个6维的Box空间，动作空间是一个1维的Box空间
         self.observation_space = Box(low=0, high=100, shape=(6,))
         self.action_space = Box(low=-3, high=3, shape=(1,))
 
-        # 初始化环境但延迟reset到首次需要时
+        # cav_ids是CAV车辆的ID列表，_is_initialized是环境是否初始化的标志
         self.cav_ids = []
         self._is_initialized = False
 
-        # 新增：车流参数设置
+        # 设置车辆参数
         self.vehicle_params = {
             "probs": {"main": 0.5, "ramp": 0.4, "CAV": 0.4},  # 增加生成概率
             "speed": 10.0,  # 最大速度

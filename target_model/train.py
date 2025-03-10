@@ -12,6 +12,7 @@ from target_model.ppo import PPO
 
 def train_ppo(env):
     """训练主循环"""
+    # 创建PPO代理
     agent = PPO(state_dim=6, action_dim=1)
 
     try:
