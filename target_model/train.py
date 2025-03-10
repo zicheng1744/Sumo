@@ -10,7 +10,7 @@ from target_model.envir import create_sumo_env
 from target_model.ppo import PPO
 
 
-def train_ppo(env, max_vehicles=10):
+def train_ppo(env, max_vehicles=50):
     """训练主循环"""
     # 创建PPO代理，支持多车辆控制
     agent = PPO(state_dim=6, action_dim=1, max_vehicles=max_vehicles)
@@ -85,7 +85,7 @@ def train_ppo(env, max_vehicles=10):
 if __name__ == "__main__":
     try:
         env = create_sumo_env(gui=True)
-        train_ppo(env, max_vehicles=10)  # 支持最多10辆CAV
+        train_ppo(env, max_vehicles=50)  # 支持最多100辆CAV
     except Exception as e:
         print(f"Failed to create or train environment: {e}")
         # 如果在这里出现异常，可能没有env变量，所以不调用env.close()

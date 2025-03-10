@@ -6,7 +6,7 @@ import numpy as np
 
 
 class MultiCAVActorCritic(nn.Module):
-    def __init__(self, state_dim, action_dim, max_vehicles=10):
+    def __init__(self, state_dim, action_dim, max_vehicles=50):
         super().__init__()
         self.max_vehicles = max_vehicles
         # 状态编码器 - 处理每个车辆的状态
