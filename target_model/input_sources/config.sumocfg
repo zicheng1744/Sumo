@@ -7,17 +7,14 @@
     </input>
     <output>
         <tripinfo-output value="tripinfo.xml" />
-        <statistic-output value="statistics.xml" />
-        <summary-output value="summary.xml" />
         <log value="simulation.log" />
-        <vehroute-output value="vehroute.xml" />
     </output>
     <time>
         <begin value="0" />
         <end value="5000" />
         <step-length value="0.1" />
     </time>
-    
+
     <processing>
         <collision.mingap-factor value="0.1" />
         <collision.action value="warn" />
