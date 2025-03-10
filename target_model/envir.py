@@ -46,7 +46,7 @@ class SumoMergeEnv:
         self.cav_ids = []
         self._is_initialized = False
 
-        # 设置车辆参数
+        # 设置车辆参数（其实在这里没用）
         self.vehicle_params = {
             "probs": {"main": 0.5, "ramp": 0.4, "CAV": 0.4},  # 增加生成概率
             "speed": 10.0,  # 最大速度
@@ -57,122 +57,144 @@ class SumoMergeEnv:
 
     # 获取观测值
     def _get_observations(self):
+        """获取所有CAV车辆的观测状态"""
         if not self.cav_ids:
             logging.warning("未检测到CAV车辆！")
             logging.info(f"当前所有车辆ID: {traci.vehicle.getIDList()}")
-            return np.zeros(6)
+            return np.zeros((1, 6))  # 返回一个默认状态（批次大小为1）
 
-        try:
-            ego_id = self.cav_ids[0]
-            logging.debug(f"当前控制车辆ID: {ego_id}")
-        except IndexError:
-            logging.error("CAV车辆列表异常！")
-            logging.error(f"当前CAV列表: {self.cav_ids}")
-            return np.zeros(6)
+        all_observations = []
+        for ego_id in self.cav_ids:
+            try:
+                ego_speed = traci.vehicle.getSpeed(ego_id)
 
-        try:
-            ego_speed = traci.vehicle.getSpeed(ego_id)
-            ego_pos = traci.vehicle.getPosition(ego_id)
-            logging.debug(f"车辆 {ego_id} 速度: {ego_speed:.2f}, 位置: {ego_pos}")
-        except Exception as e:
-            logging.error(f"获取车辆信息失败: {e}")
-            return np.zeros(6)
+                # 获取前车信息
+                leader_id = traci.vehicle.getLeader(ego_id, 100)
+                # 判断leader_id是否存在并且包含了前车ID（leader_id[0]）
+                # 在SUMO中，getLeader()会返回最近前车的ID和与该车的距离
+                if leader_id and leader_id[0]:
+                    leader_speed = traci.vehicle.getSpeed(leader_id[0])
+                    leader_dist = leader_id[1]
+                else:
+                    leader_speed = 0
+                    leader_dist = 100
 
-        try:
-            leader_id = traci.vehicle.getLeader(ego_id, 100)
-            follower_id = traci.vehicle.getFollower(ego_id, 100)
+                # 获取后车信息
+                follower_id = traci.vehicle.getFollower(ego_id, 100)
+                if follower_id and follower_id[0]:
+                    follower_speed = traci.vehicle.getSpeed(follower_id[0])
+                    follower_dist = follower_id[1]
+                else:
+                    follower_speed = 0
+                    follower_dist = 100
 
-            if leader_id and leader_id[0]:
-                leader_speed = traci.vehicle.getSpeed(leader_id[0])
-                leader_dist = leader_id[1]
-                logging.debug(
-                    f"前车ID: {leader_id[0]}, 距离: {leader_dist:.2f}, 速度: {leader_speed:.2f}"
-                )
-            else:
-                leader_speed = 0
-                leader_dist = 100
-                logging.debug("未检测到前车")
+                # 获取车道信息
+                current_lane = traci.vehicle.getLaneID(ego_id)
+                target_lane = "mc_1" if current_lane == "mc_0" else "mc_0"
 
-            if follower_id and follower_id[0]:
-                follower_speed = traci.vehicle.getSpeed(follower_id[0])
-                follower_dist = follower_id[1]
-                logging.debug(
-                    f"后车ID: {follower_id[0]}, 距离: {follower_dist:.2f}, 速度: {follower_speed:.2f}"
-                )
-            else:
-                follower_speed = 0
-                follower_dist = 100
-                logging.debug("未检测到后车")
-        except Exception as e:
-            logging.error(f"获取周围车辆信息失败: {e}")
-            return np.zeros(6)
+                # 构建单车观测
+                vehicle_obs = [
+                    ego_speed,
+                    leader_dist,
+                    leader_speed,
+                    follower_dist,
+                    follower_speed,
+                    1 if current_lane == target_lane else 0,
+                ]
+                all_observations.append(vehicle_obs)
 
-        try:
-            current_lane = traci.vehicle.getLaneID(ego_id)
-            target_lane = "mc_1" if current_lane == "mc_0" else "mc_0"
-            logging.debug(f"当前车道: {current_lane}, 目标车道: {target_lane}")
-        except Exception as e:
-            logging.error(f"获取车道信息失败: {e}")
-            return np.zeros(6)
+            except Exception as e:
+                logging.error(f"获取车辆 {ego_id} 的观测失败: {e}")
+                # 使用默认观测
+                all_observations.append([0, 100, 0, 100, 0, 0])
 
-        return np.array(
-            [
-                ego_speed,
-                leader_dist,
-                leader_speed,
-                follower_dist,
-                follower_speed,
-                1 if current_lane == target_lane else 0,
-            ]
-        )
+        # 如果没有CAV，返回单个全零观测
+        if not all_observations:
+            return np.zeros((1, 6))
 
-    def _apply_action(self, action):
+        return np.array(all_observations)
+
+    def _apply_action(self, actions):
+        """将动作应用到所有CAV车辆"""
         if not self.cav_ids:
             return
 
-        # 控制了每一辆车的速度
-        ego_id = self.cav_ids[0]
-        current_speed = traci.vehicle.getSpeed(ego_id)
-        new_speed = current_speed + action[0]
+        # 确保动作数量与车辆数量匹配
+        actions = np.atleast_2d(actions)
+        n_actions = min(len(actions), len(self.cav_ids))
 
-        new_speed = np.clip(new_speed, 0, 10)
-        traci.vehicle.setSpeed(ego_id, new_speed)
+        for i in range(n_actions):
+            ego_id = self.cav_ids[i]
+            try:
+                current_speed = traci.vehicle.getSpeed(ego_id)
+                new_speed = current_speed + actions[i][0]  # 动作是速度调整
+                new_speed = np.clip(new_speed, 0, 10)
+                traci.vehicle.setSpeed(ego_id, new_speed)
+            except Exception as e:
+                logging.error(f"应用动作到车辆 {ego_id} 失败: {e}")
 
     def _calculate_reward(self):
+        """计算全局奖励 - 考虑所有CAV车辆的整体表现"""
         if not self.cav_ids:
             return 0
 
-        ego_id = self.cav_ids[0]
-        current_speed = traci.vehicle.getSpeed(ego_id)
-        leader = traci.vehicle.getLeader(ego_id, 100)
+        # 全局效率奖励 - 平均速度
+        total_speed = 0
+        target_speed = 100  # 期望的平均速度
 
-        speed_reward = -abs(current_speed - 8)
+        # 安全奖励 - 与前车保持安全距离
+        safety_reward = 0
 
-        if leader:
-            dist = leader[1]
-            if dist < 5:
-                safety_reward = -10
-            elif dist < 10:
-                safety_reward = -5
+        # 协作奖励 - 车辆间速度协调
+        speed_variance = 0
+        speeds = []
+
+        for ego_id in self.cav_ids:
+            try:
+                # 计算速度奖励
+                current_speed = traci.vehicle.getSpeed(ego_id)
+                speeds.append(current_speed)
+                total_speed += current_speed
+
+                # 计算安全奖励
+                leader = traci.vehicle.getLeader(ego_id, 100)
+                if leader:
+                    dist = leader[1]
+                    if dist < 5:  # 危险距离
+                        safety_reward -= 10
+                    elif dist < 10:  # 警告距离
+                        safety_reward -= 5
+            except Exception as e:
+                logging.error(f"计算车辆 {ego_id} 的奖励失败: {e}")
+
+        # 计算平均速度
+        if len(self.cav_ids) > 0:
+            avg_speed = total_speed / len(self.cav_ids)
+            speed_reward = -abs(avg_speed - target_speed)  # 鼓励接近目标速度
+
+            # 计算速度方差 (如果有多辆车)
+            if len(speeds) > 1:
+                speed_variance = np.var(speeds)
+                cooperation_reward = -speed_variance  # 鼓励速度协调
             else:
-                safety_reward = 0
+                cooperation_reward = 0
         else:
-            safety_reward = 0
+            speed_reward = 0
+            cooperation_reward = 0
 
-        current_lane = traci.vehicle.getLaneID(ego_id)
-        target_lane = "mc_1" if current_lane == "mc_0" else "mc_0"
-        lane_reward = 5 if current_lane == target_lane else -5
-
-        return speed_reward + safety_reward + lane_reward
+        # 综合奖励 = 速度奖励 + 安全奖励 + 协作奖励
+        total_reward = speed_reward + safety_reward + cooperation_reward
+        return total_reward
 
     def _check_done(self, safe_check=True):
-        if not self.cav_ids:
-            return True
-
         try:
-            ego_id = self.cav_ids[0]
-            distance = traci.vehicle.getDistance(ego_id)
-            return distance > 300  # 行驶超过300米结束
+            # 只保留还在仿真中的CAV车辆
+            existing_cav_ids = [
+                vid for vid in self.cav_ids if vid in traci.vehicle.getIDList()
+            ]
+            self.cav_ids = existing_cav_ids
+            # 所有车辆都离开后结束
+            return len(traci.vehicle.getIDList()) == 0
         except Exception as e:
             if safe_check:
                 logging.error(f"检查完成状态时出错: {e}")
@@ -181,7 +203,6 @@ class SumoMergeEnv:
                 raise
 
     def step(self, action):
-        # 确保环境已初始化
         if not self._is_initialized:
             self.reset()
 
@@ -198,9 +219,8 @@ class SumoMergeEnv:
 
         except Exception as e:
             logging.error(f"执行步骤时出错: {e}")
-            # 尝试重新连接
             self.reset()
-            return np.zeros(6), 0, True, {"error": str(e)}
+            return np.zeros((1, 6)), 0, True, {"error": str(e)}
 
     def reset(self):
         """重置环境"""
@@ -331,22 +351,6 @@ class SumoMergeEnv:
                     route_files.set("value", route_rel_path)
                     logging.info(f"已更新配置文件中的路由文件路径为: {route_rel_path}")
 
-            # 新增：更新输出文件夹为output_sources
-            output_tag = root.find(".//output")
-            if output_tag is not None:
-                for key in [
-                    "summary-output",
-                    "tripinfo-output",
-                    "vehroute-output",
-                    "statistic-output",
-                    "log",
-                ]:
-                    element = output_tag.find(key)
-                    if element is not None:
-                        filename = os.path.basename(element.get("value", ""))
-                        element.set("value", f"output_sources/{filename}")
-                        logging.info(f"已更新{key}位置: output_sources/{filename}")
-
             tree.write(cfg_path)
         except Exception as e:
             logging.error(f"更新配置文件失败: {e}")
@@ -410,22 +414,6 @@ def update_config_file(cfg_path):
             if route_files is not None:
                 route_files.set("value", "routes.rou.xml")
                 logging.info(f"已更新配置文件中的路由文件路径为: routes.rou.xml")
-
-        # 新增：更新输出文件夹为output_sources
-        output_tag = root.find(".//output")
-        if output_tag is not None:
-            for key in [
-                "summary-output",
-                "tripinfo-output",
-                "vehroute-output",
-                "statistic-output",
-                "log",
-            ]:
-                element = output_tag.find(key)
-                if element is not None:
-                    filename = os.path.basename(element.get("value", ""))
-                    element.set("value", f"output_sources/{filename}")
-                    logging.info(f"已更新{key}位置: output_sources/{filename}")
 
         tree.write(cfg_path)
     except Exception as e:

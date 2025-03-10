@@ -1,61 +1,49 @@
 <routes>
-        <vType id="CAV" accel="3.0" decel="5.0" sigma="0.0" length="5" minGap="0.8" tau="0.5" maxSpeed="10.0" carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0"/>
-        <vType id="HDV" accel="3.0" decel="5.0" sigma="0.5" length="5" minGap="2.5" tau="1.2" maxSpeed="10.0" desiredMaxSpeed="10.0" speedFactor="normc(1,0.2,0.2,2)" carFollowingModel="Krauss" lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5"/>
+        <vType id="CAV" accel="3.0" decel="5.0" sigma="0.0" length="5" minGap="0.8" tau="0.5" maxSpeed="60.0" carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0"/>
+        <vType id="HDV" accel="3.0" decel="5.0" sigma="0.5" length="5" minGap="2.5" tau="1.2" maxSpeed="60.0" desiredMaxSpeed="60.0" speedFactor="normc(1,0.2,0.2,2)" carFollowingModel="Krauss" lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5"/>
         <route id="main" edges="wm mc ce" />
         <route id="ramp" edges="rm mc ce" />
         
-    <vehicle id="ramp_1" type="HDV" route="ramp" depart="1"  departSpeed="8.637846857461149" />
-    <vehicle id="main_2" type="HDV" route="main" depart="2"  departSpeed="8.628108544061552" />
-    <vehicle id="ramp_2" type="CAV" route="ramp" depart="2" color="1,0,0" />
-    <vehicle id="main_3" type="CAV" route="main" depart="3" color="1,0,0" />
-    <vehicle id="main_4" type="HDV" route="main" depart="4"  departSpeed="9.492111551175856" />
-    <vehicle id="ramp_4" type="CAV" route="ramp" depart="4" color="1,0,0" />
-    <vehicle id="main_6" type="CAV" route="main" depart="6" color="1,0,0" />
-    <vehicle id="ramp_7" type="HDV" route="ramp" depart="7"  departSpeed="8.364357679353317" />
-    <vehicle id="main_8" type="CAV" route="main" depart="8" color="1,0,0" />
-    <vehicle id="ramp_8" type="CAV" route="ramp" depart="8" color="1,0,0" />
-    <vehicle id="ramp_11" type="HDV" route="ramp" depart="11"  departSpeed="9.634897631616528" />
-    <vehicle id="ramp_14" type="CAV" route="ramp" depart="14" color="1,0,0" />
-    <vehicle id="ramp_15" type="HDV" route="ramp" depart="15"  departSpeed="8.080757287463896" />
-    <vehicle id="main_16" type="HDV" route="main" depart="16"  departSpeed="9.114939610237938" />
-    <vehicle id="ramp_16" type="HDV" route="ramp" depart="16"  departSpeed="9.97928575735509" />
-    <vehicle id="main_17" type="HDV" route="main" depart="17"  departSpeed="9.24869408370613" />
-    <vehicle id="main_18" type="HDV" route="main" depart="18"  departSpeed="9.80387736049131" />
-    <vehicle id="ramp_18" type="HDV" route="ramp" depart="18"  departSpeed="9.398878199121388" />
-    <vehicle id="main_19" type="CAV" route="main" depart="19" color="1,0,0" />
-    <vehicle id="main_20" type="HDV" route="main" depart="20"  departSpeed="8.023901423187281" />
-    <vehicle id="ramp_20" type="CAV" route="ramp" depart="20" color="1,0,0" />
+    <vehicle id="ramp_2" type="HDV" route="ramp" depart="2"  departSpeed="54.4755478543554" />
+    <vehicle id="main_4" type="HDV" route="main" depart="4"  departSpeed="58.38523047303897" />
+    <vehicle id="ramp_4" type="HDV" route="ramp" depart="4"  departSpeed="50.51270615962212" />
+    <vehicle id="main_6" type="HDV" route="main" depart="6"  departSpeed="49.74625626770444" />
+    <vehicle id="main_7" type="HDV" route="main" depart="7"  departSpeed="50.48535686018547" />
+    <vehicle id="ramp_7" type="CAV" route="ramp" depart="7" color="1,0,0" />
+    <vehicle id="main_9" type="HDV" route="main" depart="9"  departSpeed="54.20856803812805" />
+    <vehicle id="ramp_9" type="HDV" route="ramp" depart="9"  departSpeed="51.08367943371445" />
+    <vehicle id="main_10" type="CAV" route="main" depart="10" color="1,0,0" />
+    <vehicle id="ramp_11" type="CAV" route="ramp" depart="11" color="1,0,0" />
+    <vehicle id="main_12" type="HDV" route="main" depart="12"  departSpeed="59.84129453431052" />
+    <vehicle id="ramp_13" type="HDV" route="ramp" depart="13"  departSpeed="56.68619170399187" />
+    <vehicle id="main_14" type="HDV" route="main" depart="14"  departSpeed="58.5760166394405" />
+    <vehicle id="ramp_14" type="HDV" route="ramp" depart="14"  departSpeed="58.47279565596814" />
+    <vehicle id="main_15" type="HDV" route="main" depart="15"  departSpeed="58.17781020466633" />
+    <vehicle id="main_16" type="HDV" route="main" depart="16"  departSpeed="55.32439369697041" />
+    <vehicle id="ramp_18" type="HDV" route="ramp" depart="18"  departSpeed="51.77798990675785" />
+    <vehicle id="main_19" type="HDV" route="main" depart="19"  departSpeed="55.94990826859571" />
+    <vehicle id="main_20" type="CAV" route="main" depart="20" color="1,0,0" />
+    <vehicle id="ramp_20" type="HDV" route="ramp" depart="20"  departSpeed="56.239535121315846" />
     <vehicle id="main_22" type="CAV" route="main" depart="22" color="1,0,0" />
-    <vehicle id="main_23" type="HDV" route="main" depart="23"  departSpeed="8.501546934830106" />
-    <vehicle id="main_24" type="HDV" route="main" depart="24"  departSpeed="9.717581463301336" />
-    <vehicle id="main_25" type="HDV" route="main" depart="25"  departSpeed="8.753823935799034" />
-    <vehicle id="main_26" type="HDV" route="main" depart="26"  departSpeed="9.676488714862703" />
+    <vehicle id="main_25" type="HDV" route="main" depart="25"  departSpeed="51.989153331526445" />
+    <vehicle id="ramp_26" type="HDV" route="ramp" depart="26"  departSpeed="58.16777524832896" />
     <vehicle id="main_27" type="CAV" route="main" depart="27" color="1,0,0" />
-    <vehicle id="main_28" type="CAV" route="main" depart="28" color="1,0,0" />
-    <vehicle id="main_29" type="HDV" route="main" depart="29"  departSpeed="9.19769269604042" />
-    <vehicle id="main_30" type="HDV" route="main" depart="30"  departSpeed="9.240393570309282" />
-    <vehicle id="main_31" type="CAV" route="main" depart="31" color="1,0,0" />
-    <vehicle id="main_32" type="HDV" route="main" depart="32"  departSpeed="8.186934294144574" />
-    <vehicle id="ramp_32" type="HDV" route="ramp" depart="32"  departSpeed="8.408060965090526" />
-    <vehicle id="ramp_33" type="HDV" route="ramp" depart="33"  departSpeed="9.261351761314094" />
-    <vehicle id="ramp_34" type="CAV" route="ramp" depart="34" color="1,0,0" />
-    <vehicle id="ramp_35" type="HDV" route="ramp" depart="35"  departSpeed="9.509821537111307" />
-    <vehicle id="ramp_36" type="HDV" route="ramp" depart="36"  departSpeed="9.692604718528893" />
-    <vehicle id="main_37" type="CAV" route="main" depart="37" color="1,0,0" />
-    <vehicle id="ramp_37" type="HDV" route="ramp" depart="37"  departSpeed="8.505037956559685" />
-    <vehicle id="main_39" type="HDV" route="main" depart="39"  departSpeed="9.579689896699646" />
-    <vehicle id="ramp_39" type="HDV" route="ramp" depart="39"  departSpeed="8.936770652933411" />
-    <vehicle id="ramp_40" type="HDV" route="ramp" depart="40"  departSpeed="8.570123398380156" />
-    <vehicle id="main_41" type="HDV" route="main" depart="41"  departSpeed="9.843266545389111" />
-    <vehicle id="ramp_41" type="HDV" route="ramp" depart="41"  departSpeed="8.20627913717381" />
-    <vehicle id="main_42" type="HDV" route="main" depart="42"  departSpeed="9.996887482924809" />
-    <vehicle id="ramp_42" type="HDV" route="ramp" depart="42"  departSpeed="8.273226662673569" />
-    <vehicle id="main_43" type="CAV" route="main" depart="43" color="1,0,0" />
-    <vehicle id="main_44" type="HDV" route="main" depart="44"  departSpeed="8.074992536802236" />
-    <vehicle id="ramp_44" type="HDV" route="ramp" depart="44"  departSpeed="9.24163954161325" />
-    <vehicle id="main_46" type="CAV" route="main" depart="46" color="1,0,0" />
-    <vehicle id="ramp_46" type="HDV" route="ramp" depart="46"  departSpeed="9.373720254840102" />
-    <vehicle id="main_47" type="CAV" route="main" depart="47" color="1,0,0" />
-    <vehicle id="main_48" type="HDV" route="main" depart="48"  departSpeed="8.340957653549541" />
-    <vehicle id="ramp_48" type="CAV" route="ramp" depart="48" color="1,0,0" />
+    <vehicle id="ramp_27" type="CAV" route="ramp" depart="27" color="1,0,0" />
+    <vehicle id="ramp_28" type="HDV" route="ramp" depart="28"  departSpeed="54.19138796607308" />
+    <vehicle id="ramp_29" type="CAV" route="ramp" depart="29" color="1,0,0" />
+    <vehicle id="ramp_31" type="CAV" route="ramp" depart="31" color="1,0,0" />
+    <vehicle id="main_32" type="HDV" route="main" depart="32"  departSpeed="51.1869692490003" />
+    <vehicle id="main_34" type="CAV" route="main" depart="34" color="1,0,0" />
+    <vehicle id="ramp_36" type="HDV" route="ramp" depart="36"  departSpeed="49.627608848643916" />
+    <vehicle id="ramp_38" type="HDV" route="ramp" depart="38"  departSpeed="48.88571319691906" />
+    <vehicle id="main_39" type="HDV" route="main" depart="39"  departSpeed="49.76789300466851" />
+    <vehicle id="main_41" type="CAV" route="main" depart="41" color="1,0,0" />
+    <vehicle id="ramp_41" type="HDV" route="ramp" depart="41"  departSpeed="49.746551700607874" />
+    <vehicle id="ramp_42" type="HDV" route="ramp" depart="42"  departSpeed="53.97048255417842" />
+    <vehicle id="main_43" type="HDV" route="main" depart="43"  departSpeed="59.958168124200355" />
+    <vehicle id="ramp_44" type="CAV" route="ramp" depart="44" color="1,0,0" />
+    <vehicle id="main_45" type="HDV" route="main" depart="45"  departSpeed="52.86310561485486" />
+    <vehicle id="main_47" type="HDV" route="main" depart="47"  departSpeed="51.81068369286622" />
+    <vehicle id="ramp_48" type="HDV" route="ramp" depart="48"  departSpeed="48.02425219728396" />
+    <vehicle id="main_49" type="HDV" route="main" depart="49"  departSpeed="58.51620980091618" />
 </routes>

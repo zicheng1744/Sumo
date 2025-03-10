@@ -57,7 +57,7 @@ def generate_routefile(probs, speed, N, accel, decel):
 
 if __name__ == "__main__":
     probs = {"main": 0.5, "ramp": 0.4, "CAV": 0.4}
-    speed = 10.0
+    speed = 60.0
     N = 50
     accel = 3.0
     decel = 5.0
