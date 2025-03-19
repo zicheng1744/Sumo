@@ -34,7 +34,7 @@ class SumoMergeEnv:
 
         # 初始化环境参数
         # episode_length是每个episode的最大步数，current_step是当前步数
-        self.episode_length = 1000
+        self.episode_length = 1000000
         self.current_step = 0
 
         # 观测空间和动作空间
@@ -44,20 +44,22 @@ class SumoMergeEnv:
 
         # cav_ids是CAV车辆的ID列表，_is_initialized是环境是否初始化的标志
         self.cav_ids = []
+        self.hdv_ids = []
         self._is_initialized = False
 
         # 设置车辆参数（其实在这里没用）
-        self.vehicle_params = {
+        """self.vehicle_params = {
             "probs": {"main": 0.5, "ramp": 0.4, "CAV": 0.4},  # 增加生成概率
             "speed": 10.0,  # 最大速度
             "num_vehicles": 50,  # 增加车辆总数
             "accel": 3.0,  # 加速度
             "decel": 5.0,  # 减速度
-        }
+        }"""
 
     # 获取观测值
     def _get_observations(self):
         """获取所有CAV车辆的观测状态"""
+        logging.debug("获取所有CAV车辆的观测状态...")
         if not self.cav_ids:
             logging.warning("未检测到CAV车辆！")
             logging.info(f"当前所有车辆ID: {traci.vehicle.getIDList()}")
@@ -66,7 +68,9 @@ class SumoMergeEnv:
         all_observations = []
         for ego_id in self.cav_ids:
             try:
+                logging.debug(f"获取车辆 {ego_id} 的观测状态...")
                 ego_speed = traci.vehicle.getSpeed(ego_id)
+                logging.debug(f"车辆 {ego_id} 的速度: {ego_speed}")
 
                 # 获取前车信息
                 leader_id = traci.vehicle.getLeader(ego_id, 100)
@@ -125,6 +129,7 @@ class SumoMergeEnv:
 
         for i in range(n_actions):
             ego_id = self.cav_ids[i]
+            # print(f"ego_id: {ego_id}")
             try:
                 current_speed = traci.vehicle.getSpeed(ego_id)
                 new_speed = current_speed + actions[i][0]  # 动作是速度调整
@@ -188,12 +193,6 @@ class SumoMergeEnv:
 
     def _check_done(self, safe_check=True):
         try:
-            # 只保留还在仿真中的CAV车辆
-            existing_cav_ids = [
-                vid for vid in self.cav_ids if vid in traci.vehicle.getIDList()
-            ]
-            self.cav_ids = existing_cav_ids
-            # 所有车辆都离开后结束
             return len(traci.vehicle.getIDList()) == 0
         except Exception as e:
             if safe_check:
@@ -209,6 +208,18 @@ class SumoMergeEnv:
         try:
             self._apply_action(action)
             traci.simulationStep()
+            # 使用新逻辑更新车辆类型并划分CAV/HDV
+            all_vehicles = traci.vehicle.getIDList()
+            vehicles = [
+                {
+                    "id": v_id,
+                    "type": traci.vehicle.getTypeID(v_id),
+                }
+                for v_id in all_vehicles
+            ]
+            self.cav_ids = [v["id"] for v in vehicles if "CAV" in v["type"]]
+            self.hdv_ids = [v["id"] for v in vehicles if "HDV" in v["type"]]
+
             self.current_step += 1
 
             obs = self._get_observations()
@@ -266,10 +277,17 @@ class SumoMergeEnv:
             i = 0
             while True:
                 traci.simulationStep()
-                vehicles = traci.vehicle.getIDList()
-                if vehicles:  # 检测到车辆后退出
+                vehicles = [
+                    {
+                        "id": v_id,
+                        "type": traci.vehicle.getTypeID(v_id),
+                    }
+                    for v_id in traci.vehicle.getIDList()
+                ]
+                cav_vehicles = [v for v in vehicles if "CAV" in v["type"]]
+                if cav_vehicles:  # 检测到CAV车辆后退出
                     logging.info(
-                        f"步骤 {i}: 车辆数量 {len(vehicles)}, 车辆ID: {vehicles}"
+                        f"步骤 {i}: CAV车辆数量 {len(cav_vehicles)}, 车辆ID: {[v['id'] for v in cav_vehicles]}"
                     )
                     break  # 退出循环
                 if i % 5 == 0:  # 每隔五步记录一次
@@ -277,31 +295,26 @@ class SumoMergeEnv:
                         f"步骤 {i}: 车辆数量 {len(vehicles)}, 车辆ID: {vehicles}"
                     )
                 i += 1
-                if i >= 50:  # 防止无限循环，最多执行20步
+                if i >= 100:  # 防止无限循环，最多执行20步
                     logging.warning("在50步内未检测到车辆")
                     break
 
             # 获取所有车辆ID
-            all_vehicles = traci.vehicle.getIDList()
+            all_vehicles = [
+                {
+                    "id": v_id,
+                    "type": traci.vehicle.getTypeID(v_id),
+                }
+                for v_id in traci.vehicle.getIDList()
+            ]
             logging.info(f"当前所有车辆ID: {all_vehicles}")
 
             # 获取CAV车辆列表
-            self.cav_ids = []
-            hdv_ids = []
-            for v_id in all_vehicles:
-                try:
-                    v_type = traci.vehicle.getTypeID(v_id)
-                    if v_type == "CAV":
-                        self.cav_ids.append(v_id)
-                        logging.info(f"检测到CAV车辆: {v_id}")
-                    elif v_type == "HDV":
-                        hdv_ids.append(v_id)
-                        logging.debug(f"检测到HDV车辆: {v_id}")
-                except Exception as e:
-                    logging.warning(f"获取车辆 {v_id} 类型失败: {e}")
+            self.cav_ids = [v["id"] for v in all_vehicles if "CAV" in v["type"]]
+            self.hdv_ids = [v["id"] for v in all_vehicles if "HDV" in v["type"]]
 
             logging.info(
-                f"检测到CAV车辆数量: {len(self.cav_ids)}, HDV车辆数量: {len(hdv_ids)}"
+                f"检测到CAV车辆数量: {len(self.cav_ids)}, HDV车辆数量: {len(self.hdv_ids)}"
             )
 
             # 添加车辆存在性检查
@@ -430,6 +443,8 @@ def test_sumo_env():
         logging.info("调用reset()...")
         obs = env.reset()
         logging.info(f"获得初始观测值: {obs}")
+        logging.info(f"检测CAV车辆数量: {len(env.cav_ids)}")
+        logging.info(f"检测HDV车辆数量: {len(env.hdv_ids)}")
 
         logging.info("测试执行动作...")
         for i in range(5):

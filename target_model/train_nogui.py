@@ -122,14 +122,34 @@ def train_ppo_nogui(
 
                 # 如果episode结束或达到最大步数，则更新策略
                 if done or step == env.episode_length - 1:
+                    padded_states = []
+                    for s in states:
+                        padded = np.zeros((max_vehicles, 6))  # 6是观测向量维度
+                        padded[: s.shape[0]] = s
+                        padded_states.append(padded)
+                    padded_actions = []
+                    for a in actions:
+                        padded = np.zeros((max_vehicles, 1))
+                        padded[: len(a)] = a
+                        padded_actions.append(padded)
+                    padded_next_states = []
+                    for ns in next_states:
+                        padded = np.zeros((max_vehicles, 6))
+                        padded[: ns.shape[0]] = ns
+                        padded_next_states.append(padded)
+
+                    np_states = np.array(padded_states)
+                    np_actions = np.array(padded_actions)
+                    np_next_states = np.array(padded_next_states)
+
                     loss = agent.update(
-                        np.array(states),
-                        np.array(actions),
+                        np_states,
+                        np_actions,
                         torch.cat([lp.flatten() for lp in log_probs]).reshape(
                             len(log_probs), -1
                         ),
                         np.array(rewards),
-                        np.array(next_states),
+                        np_next_states,
                         np.array(dones),
                     )
 
