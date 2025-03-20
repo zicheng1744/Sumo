@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2025-03-20 20:34:04 by Eclipse SUMO sumo Version 1.21.0
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\18576\Sumo\grok_version\input_sources\highway_merge.net.xml"/>
+        <route-files value="C:\Users\18576\Sumo\grok_version\input_sources\routes.rou.xml"/>
+    </input>
+
+    <output>
+        <tripinfo-output value="C:\Users\18576\Sumo\grok_version\input_sources\tripinfo.xml"/>
+    </output>
+
+    <time>
+        <begin value="0"/>
+        <end value="5000"/>
+        <step-length value="0.1"/>
+    </time>
+
+    <processing>
+        <extrapolate-departpos value="true"/>
+        <route-steps value="100"/>
+        <ignore-route-errors value="true"/>
+        <collision.action value="warn"/>
+        <collision.stoptime value="1"/>
+        <collision.mingap-factor value="0.1"/>
+        <time-to-teleport value="-1"/>
+    </processing>
+
+    <report>
+        <verbose value="true"/>
+        <log value="C:\Users\18576\Sumo\grok_version\input_sources\simulation.log"/>
+        <no-step-log value="false"/>
+    </report>
+
+    <traci_server>
+        <remote-port value="28139"/>
+    </traci_server>
+
+    <gui_only>
+        <quit-on-end value="true"/>
+        <start value="false"/>
+    </gui_only>
+
+</sumoConfiguration>
+-->
+
+<tripinfos xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tripinfo_file.xsd">
+    <tripinfo id="main_0" depart="0.00" departLane="wm_0" departPos="5.10" departSpeed="7.91" departDelay="0.00" arrival="49.90" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="7.99" duration="49.90" routeLength="394.90" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="0.46" rerouteNo="0" devices="tripinfo_main_0" vType="HDV" speedFactor="1.12" vaporized=""/>
+    <tripinfo id="main_5" depart="5.00" departLane="wm_0" departPos="5.10" departSpeed="6.55" departDelay="0.00" arrival="55.00" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="7.96" duration="50.00" routeLength="394.90" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="0.64" rerouteNo="0" devices="tripinfo_main_5" vType="HDV" speedFactor="1.06" vaporized=""/>
+    <tripinfo id="main_6" depart="7.00" departLane="wm_0" departPos="5.10" departSpeed="7.20" departDelay="1.00" arrival="57.20" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="7.86" duration="50.20" routeLength="394.90" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="0.88" rerouteNo="0" devices="tripinfo_main_6" vType="HDV" speedFactor="1.09" vaporized=""/>
+    <tripinfo id="ramp_0" depart="0.00" departLane="rm_0" departPos="5.10" departSpeed="6.98" departDelay="0.00" arrival="63.30" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="6.91" duration="63.30" routeLength="405.14" waitingTime="2.90" waitingCount="1" stopTime="0.00" timeLoss="5.51" rerouteNo="0" devices="tripinfo_ramp_0" vType="HDV" speedFactor="0.88" vaporized=""/>
+    <tripinfo id="main_7" depart="9.00" departLane="wm_0" departPos="5.10" departSpeed="6.97" departDelay="2.00" arrival="66.00" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="6.87" duration="57.00" routeLength="394.90" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="0.62" rerouteNo="0" devices="tripinfo_main_7" vType="HDV" speedFactor="0.88" vaporized=""/>
+    <tripinfo id="ramp_2" depart="36.20" departLane="rm_0" departPos="5.10" departSpeed="6.41" departDelay="34.20" arrival="249.20" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="7.88" duration="213.00" routeLength="405.14" waitingTime="0.30" waitingCount="2" stopTime="0.00" timeLoss="162.28" rerouteNo="0" devices="tripinfo_ramp_2" vType="HDV" speedFactor="1.17" vaporized=""/>
+</tripinfos>

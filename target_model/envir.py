@@ -34,13 +34,13 @@ class SumoMergeEnv:
 
         # 初始化环境参数
         # episode_length是每个episode的最大步数，current_step是当前步数
-        self.episode_length = 1000000
+        self.episode_length = 10000
         self.current_step = 0
 
-        # 观测空间和动作空间
-        # 观测空间是一个6维的Box空间，动作空间是一个1维的Box空间
-        self.observation_space = Box(low=0, high=100, shape=(6,))
+        # 调整观测空间形状为(num_vehicles, 6)
+        self.observation_space = Box(low=0, high=100, shape=(None, 6))
         self.action_space = Box(low=-3, high=3, shape=(1,))
+        self.metadata = {"render.modes": ["human"]}
 
         # cav_ids是CAV车辆的ID列表，_is_initialized是环境是否初始化的标志
         self.cav_ids = []
@@ -208,6 +208,7 @@ class SumoMergeEnv:
         try:
             self._apply_action(action)
             traci.simulationStep()
+            # 转换观测为适合SB3的形状
             # 使用新逻辑更新车辆类型并划分CAV/HDV
             all_vehicles = traci.vehicle.getIDList()
             vehicles = [
@@ -226,7 +227,13 @@ class SumoMergeEnv:
             reward = self._calculate_reward()
             done = self._check_done()
 
-            return obs, reward, done, {}
+            # 返回观测、奖励、done、info（保持观测原始形状）
+            return (
+                self._get_observations(),
+                reward,
+                done,
+                {"vehicle_count": len(self.cav_ids)},
+            )
 
         except Exception as e:
             logging.error(f"执行步骤时出错: {e}")
@@ -236,8 +243,8 @@ class SumoMergeEnv:
     def reset(self):
         """重置环境"""
         logging.info("开始重置环境...")
-        # 先关闭现有连接
         self.close()
+        # 返回适合SB3的观测形状
 
         try:
 
@@ -337,7 +344,8 @@ class SumoMergeEnv:
             # sys.exit(1)
 
         logging.info("环境重置完成")
-        return self._get_observations()
+        obs = self._get_observations()
+        return obs  # 形状为(num_vehicles, 6)
 
     def _update_config_file(self, cfg_path):
         """更新配置文件，确保路由文件路径正确"""

@@ -108,7 +108,7 @@ def train_ppo_nogui(
                 action, log_prob = agent.select_action(state)
                 next_state, reward, done, _ = env.step(action)
 
-                # 存储数据
+                # 存储原始数据，不进行填充
                 states.append(state)
                 actions.append(action)
                 log_probs.append(log_prob)
@@ -142,12 +142,28 @@ def train_ppo_nogui(
                     np_actions = np.array(padded_actions)
                     np_next_states = np.array(padded_next_states)
 
+                    # 在训练循环中处理 log_probs 的部分
+                    padded_log_probs = []
+                    for lp in log_probs:
+                        actual_size = lp.size(0)
+                        # 创建与输入张量相同维度的填充张量
+                        padded = torch.zeros(
+                            (max_vehicles, *lp.shape[1:])
+                        )  # 保持除第一维外的其他维度
+                        # 确保实际数据不超过最大车辆数
+                        copy_size = min(actual_size, max_vehicles)
+                        padded[:copy_size] = lp[:copy_size]
+                        padded_log_probs.append(padded)
+
+                    # 合并为形状 (num_steps, max_vehicles, 1)
+                    np_log_probs = torch.cat(padded_log_probs, dim=0).view(
+                        len(padded_log_probs), max_vehicles, -1
+                    )
+
                     loss = agent.update(
                         np_states,
                         np_actions,
-                        torch.cat([lp.flatten() for lp in log_probs]).reshape(
-                            len(log_probs), -1
-                        ),
+                        np_log_probs,
                         np.array(rewards),
                         np_next_states,
                         np.array(dones),
@@ -278,7 +294,7 @@ if __name__ == "__main__":
 
     try:
         # 创建无GUI环境
-        env = create_sumo_env(gui=False)  # 关闭GUI以提高训练速度
+        env = create_sumo_env(gui=True)  # 关闭GUI以提高训练速度
 
         # 开始训练
         log_file, model_path = train_ppo_nogui(

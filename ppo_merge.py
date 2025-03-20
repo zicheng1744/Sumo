@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Normal
 import traci
-from gym import spaces
 from gym.spaces import Box
 import time
 import logging

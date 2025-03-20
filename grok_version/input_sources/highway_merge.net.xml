@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-12-16 09:47:55 by Eclipse SUMO netconvert Version 1.16.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <node-files value="nodes.nod.xml"/>
+        <edge-files value="edges.edg.xml"/>
+    </input>
+
+    <output>
+        <output-file value="highway_merge.net.xml"/>
+    </output>
+
+</configuration>
+-->
+
+<net version="1.16" junctionCornerDetail="5" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+
+    <location netOffset="200.00,50.00" convBoundary="0.00,0.00,400.00,50.00" origBoundary="-200.00,-50.00,200.00,0.00" projParameter="!"/>
+
+    <edge id=":c_0" function="internal">
+        <lane id=":c_0_0" index="0" speed="100.00" length="8.00" shape="196.00,48.40 204.00,48.40"/>
+    </edge>
+    <edge id=":m_0" function="internal">
+        <lane id=":m_0_0" index="0" speed="10.28" length="3.71" shape="92.30,44.36 93.29,44.84 94.00,45.09 94.76,45.18 95.86,45.20"/>
+    </edge>
+    <edge id=":m_1" function="internal">
+        <lane id=":m_1_0" index="0" speed="100.00" length="3.76" shape="92.10,48.40 95.86,48.40"/>
+    </edge>
+
+    <edge id="ce" from="c" to="e" priority="1">
+        <lane id="ce_0" index="0" speed="100.00" length="196.00" shape="204.00,48.40 400.00,48.40"/>
+    </edge>
+    <edge id="mc" from="m" to="c" priority="1">
+        <lane id="mc_0" index="0" speed="100.00" length="100.14" acceleration="1" shape="95.86,45.20 196.00,45.20"/>
+        <lane id="mc_1" index="1" speed="100.00" length="100.14" shape="95.86,48.40 196.00,48.40"/>
+    </edge>
+    <edge id="rm" from="r" to="m" priority="1">
+        <lane id="rm_0" index="0" speed="100.00" length="102.39" shape="0.72,-1.43 92.30,44.36"/>
+    </edge>
+    <edge id="wm" from="w" to="m" priority="1">
+        <lane id="wm_0" index="0" speed="100.00" length="92.10" shape="0.00,48.40 92.10,48.40"/>
+    </edge>
+
+    <junction id="c" type="unregulated" x="200.00" y="50.00" incLanes="mc_0 mc_1" intLanes=":c_0_0" shape="204.00,50.00 204.00,46.80 200.97,45.97 199.03,44.43 197.79,43.84 196.00,43.60 196.00,50.00"/>
+    <junction id="e" type="dead_end" x="400.00" y="50.00" incLanes="ce_0" intLanes="" shape="400.00,46.80 400.00,50.00"/>
+    <junction id="m" type="unregulated" x="100.00" y="50.00" incLanes="rm_0 wm_0" intLanes=":m_0_0 :m_1_0" shape="95.86,50.00 95.86,43.60 94.76,43.57 94.38,43.51 94.01,43.39 93.58,43.21 93.01,42.93 91.58,45.79 92.54,46.35 92.72,46.55 92.71,46.69 92.50,46.77 92.10,46.80 92.10,50.00"/>
+    <junction id="r" type="dead_end" x="0.00" y="0.00" incLanes="" intLanes="" shape="-0.00,-0.00 1.43,-2.86"/>
+    <junction id="w" type="dead_end" x="0.00" y="50.00" incLanes="" intLanes="" shape="0.00,50.00 0.00,46.80"/>
+
+    <connection from="mc" to="ce" fromLane="1" toLane="0" via=":c_0_0" dir="s" state="M"/>
+    <connection from="rm" to="mc" fromLane="0" toLane="0" via=":m_0_0" dir="s" state="M"/>
+    <connection from="wm" to="mc" fromLane="0" toLane="1" via=":m_1_0" dir="s" state="M"/>
+
+    <connection from=":c_0" to="ce" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":m_0" to="mc" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":m_1" to="mc" fromLane="0" toLane="1" dir="s" state="M"/>
+
+</net>
