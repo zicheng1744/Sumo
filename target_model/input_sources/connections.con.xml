@@ -1,3 +1,0 @@
-<connections>
-    <connection from="ramp" to="main" fromLane="0" toLane="0"/>
-</connections>
