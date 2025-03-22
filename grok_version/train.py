@@ -60,17 +60,18 @@ class SumoMergeEnv(gym.Env):
         self._is_initialized = False
         self.max_cavs = 50  # 最大支持的 CAV 数量
         self.need_reset = need_reset
-        self.action_scale = action_scale
-        self.max_speed = max_speed
+        self.action_scale = action_scale  # 增大动作范围，允许更快速度变化
+        self.max_speed = max_speed  # 设置合理的最大速度限制
         self.stats = {
             'rewards': [],
             'avg_speeds': [],
-            'vehicle_counts': []
+            'vehicle_counts': [],
+            'lead_cav_speeds': []  # 添加领头CAV速度记录
         }
 
         # 固定观测空间和动作空间
         self.observation_space = Box(
-            low=-np.inf, high=np.inf, shape=(self.max_cavs * 6,), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(self.max_cavs * 7,), dtype=np.float32
         )
         self.action_space = Box(
             low=-1, high=1, shape=(self.max_cavs,), dtype=np.float32
@@ -85,17 +86,21 @@ class SumoMergeEnv(gym.Env):
     def _get_observations(self):
         """获取所有 CAV 的观测并展平"""
         if not self.cav_ids:
-            return np.zeros(self.max_cavs * 6, dtype=np.float32)
+            return np.zeros(self.max_cavs * 7, dtype=np.float32)
 
         obs = []
         for cav_id in self.cav_ids:
             try:
                 speed = traci.vehicle.getSpeed(cav_id)
                 leader = traci.vehicle.getLeader(cav_id, 100)
+                
+                # 修改：添加无领车标志，修改默认值
+                leader_exists = 1 if leader and leader[0] else 0
                 leader_dist = leader[1] if leader and leader[0] else 100
                 leader_speed = (
-                    traci.vehicle.getSpeed(leader[0]) if leader and leader[0] else 0
+                    traci.vehicle.getSpeed(leader[0]) if leader and leader[0] else 0  # 修改默认值为0
                 )
+                
                 follower = traci.vehicle.getFollower(cav_id, 100)
                 follower_dist = follower[1] if follower and follower[0] else 100
                 follower_speed = (
@@ -106,6 +111,8 @@ class SumoMergeEnv(gym.Env):
                 lane = traci.vehicle.getLaneID(cav_id)
                 target_lane = "mc_1" if lane == "mc_0" else "mc_0"
                 lane_flag = 1 if lane == target_lane else 0
+                
+                # 修改：添加无领车标志到观测中
                 obs.extend(
                     [
                         speed,
@@ -114,33 +121,73 @@ class SumoMergeEnv(gym.Env):
                         follower_dist,
                         follower_speed,
                         lane_flag,
+                        leader_exists,  # 新增：无领车标志
                     ]
                 )
             except Exception as e:
                 logging.warning(f"获取 {cav_id} 观测失败: {e}")
-                obs.extend([0, 100, 0, 100, 0, 0])
+                obs.extend([0, 100, 0, 100, 0, 0, 0])  # 添加对应的默认值
 
         # 填充到固定长度
-        flat_obs = np.zeros(self.max_cavs * 6, dtype=np.float32)
+        flat_obs = np.zeros(self.max_cavs * 7, dtype=np.float32)
         flat_obs[: len(obs)] = obs
         return flat_obs
 
     def _apply_action(self, actions):
         """应用动作到所有 CAV"""
-        actions = actions * self.action_scale  # 缩放到 [-action_scale, action_scale]
+        actions = actions * self.action_scale  # 使用增大的动作范围
         
         # 确保actions的长度与cav_ids匹配
         if len(self.cav_ids) > 0:
             # 截断actions到当前CAV数量
             actions_to_apply = actions[:len(self.cav_ids)]
             
+            lead_cavs = []  # 记录领头CAV
+            
+            # 识别所有领头CAV（前方无车或距离很远的CAV）
+            for i, cav_id in enumerate(self.cav_ids):
+                try:
+                    leader = traci.vehicle.getLeader(cav_id, 100)
+                    if not leader or leader[1] > 50:  # 前方无车或距离很远
+                        lead_cavs.append((i, cav_id))
+                except Exception:
+                    pass
+            
             for i, cav_id in enumerate(self.cav_ids):
                 try:
                     current_speed = traci.vehicle.getSpeed(cav_id)
-                    new_speed = np.clip(current_speed + actions_to_apply[i], 0, self.max_speed)
+                    
+                    # 对领头CAV特殊处理，鼓励加速
+                    if (i, cav_id) in lead_cavs:
+                        # 如果是领头CAV且速度较低，施加额外加速
+                        if current_speed < self.max_speed * 0.5:
+                            new_speed = np.clip(current_speed + max(actions_to_apply[i], 0.5), 0, self.max_speed)
+                            # 记录首车速度变化日志
+                            logging.info(f"Step {self.current_step}, 领头CAV {cav_id}: 当前速度={current_speed:.2f}, 动作值={actions_to_apply[i]:.2f}, 新速度={new_speed:.2f}")
+                        else:
+                            new_speed = np.clip(current_speed + actions_to_apply[i], 0, self.max_speed)
+                    else:
+                        new_speed = np.clip(current_speed + actions_to_apply[i], 0, self.max_speed)
+                    
                     traci.vehicle.setSpeed(cav_id, new_speed)
                 except Exception as e:
                     logging.warning(f"应用动作到 {cav_id} 失败: {e}")
+
+    def _identify_lead_cavs(self):
+        """识别所有领头CAV（前方无车或距离很远的CAV）"""
+        lead_cavs = []
+        lead_speeds = []
+        
+        for cav_id in self.cav_ids:
+            try:
+                leader = traci.vehicle.getLeader(cav_id, 100)
+                if not leader or leader[1] > 50:  # 前方无车或距离很远
+                    lead_cavs.append(cav_id)
+                    lead_speeds.append(traci.vehicle.getSpeed(cav_id))
+            except Exception:
+                pass
+                
+        return lead_cavs, lead_speeds
 
     def _calculate_reward(self):
         """计算全局奖励"""
@@ -150,24 +197,44 @@ class SumoMergeEnv(gym.Env):
         total_speed = 0
         speeds = []
         
+        # 识别领头CAV
+        lead_cavs, lead_speeds = self._identify_lead_cavs()
+        
+        # 记录领头CAV速度
+        if lead_speeds:
+            avg_lead_speed = sum(lead_speeds) / len(lead_speeds)
+            self.stats['lead_cav_speeds'].append(avg_lead_speed)
+        else:
+            self.stats['lead_cav_speeds'].append(0)
+        
         for cav_id in self.cav_ids:
             try:
                 speed = traci.vehicle.getSpeed(cav_id)
                 speeds.append(speed)
                 total_speed += speed
-                
-                
             except Exception as e:
                 logging.warning(f"计算 {cav_id} 奖励失败: {e}")
         
         # 平均速度奖励
         avg_speed = total_speed / len(self.cav_ids) if self.cav_ids else 0
         
+        # 添加领头CAV速度奖励
+        lead_cav_speed_bonus = 0
+        if lead_cavs:
+            for cav_id in lead_cavs:
+                try:
+                    lead_speed = traci.vehicle.getSpeed(cav_id)
+                    # 奖励领头CAV高速行驶，惩罚低速爬行
+                    speed_ratio = lead_speed / self.max_speed
+                    if speed_ratio < 0.3:  # 速度低于最大速度的30%
+                        lead_cav_speed_bonus -= 5 * (0.3 - speed_ratio)  # 惩罚低速
+                    else:
+                        lead_cav_speed_bonus += 2 * speed_ratio  # 奖励高速
+                except Exception:
+                    pass
         
-        
-        # 总奖励
-        speed_reward = avg_speed  # 基本奖励为平均速度
-        total_reward = speed_reward
+        # 总奖励：平均速度 + 领头车速度奖励
+        total_reward = avg_speed + lead_cav_speed_bonus
         
         # 记录统计信息
         self.stats['rewards'].append(total_reward)
@@ -176,8 +243,8 @@ class SumoMergeEnv(gym.Env):
         
         # 调试信息
         if self.current_step % 100 == 0:
-            logging.info(f"Step {self.current_step}, CAVs: {len(self.cav_ids)}, Reward: {total_reward:.2f} = "
-                       f"Speed: {speed_reward:.2f}")
+            logging.info(f"Step {self.current_step}, CAVs: {len(self.cav_ids)}, 领头CAVs: {len(lead_cavs)}, "
+                       f"Reward: {total_reward:.2f} = Speed: {avg_speed:.2f} + LeadBonus: {lead_cav_speed_bonus:.2f}")
         
         return total_reward
 
@@ -227,7 +294,8 @@ class SumoMergeEnv(gym.Env):
         self.stats = {
             'rewards': [],
             'avg_speeds': [],
-            'vehicle_counts': []
+            'vehicle_counts': [],
+            'lead_cav_speeds': []  # 重置领头CAV速度统计
         }
         
         # 尝试启动SUMO，有重试机制
@@ -311,6 +379,15 @@ class SumoMergeEnv(gym.Env):
         plt.ylabel('车辆数量')
         plt.grid(True)
         plt.savefig(f"{save_dir}/vehicle_counts_{current_time}.png")
+        
+        # 绘制领头CAV速度曲线
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.stats['lead_cav_speeds'])
+        plt.title('领头CAV速度随时间变化')
+        plt.xlabel('时间步')
+        plt.ylabel('速度 (m/s)')
+        plt.grid(True)
+        plt.savefig(f"{save_dir}/lead_cav_speeds_{current_time}.png")
         
         logging.info(f"统计图表已保存到 {save_dir} 目录")
 
@@ -571,8 +648,8 @@ def main():
     train_parser.add_argument("--gui", action="store_true", help="使用SUMO的GUI模式")
     train_parser.add_argument("--save_dir", type=str, default="./results", help="结果保存目录")
     train_parser.add_argument("--episode_length", type=int, default=10000, help="单回合最大步数")
-    train_parser.add_argument("--action_scale", type=float, default=3.0, help="动作缩放因子")
-    train_parser.add_argument("--max_speed", type=float, default=100.0, help="最大速度限制")
+    train_parser.add_argument("--action_scale", type=float, default=10.0, help="动作缩放因子")
+    train_parser.add_argument("--max_speed", type=float, default=30.0, help="最大速度限制")
     train_parser.add_argument("--learning_rate", type=float, default=3e-4, help="学习率")
     train_parser.add_argument("--total_timesteps", type=int, default=200000, help="总训练步数")
     train_parser.add_argument("--n_steps", type=int, default=8192, help="每次更新收集的步数")
@@ -588,8 +665,8 @@ def main():
     test_parser.add_argument("--gui", action="store_true", help="使用SUMO的GUI模式")
     test_parser.add_argument("--save_dir", type=str, default="./results", help="结果保存目录")
     test_parser.add_argument("--episode_length", type=int, default=10000, help="单回合最大步数")
-    test_parser.add_argument("--action_scale", type=float, default=3.0, help="动作缩放因子")
-    test_parser.add_argument("--max_speed", type=float, default=100.0, help="最大速度限制")
+    test_parser.add_argument("--action_scale", type=float, default=10.0, help="动作缩放因子")
+    test_parser.add_argument("--max_speed", type=float, default=30.0, help="最大速度限制")
     test_parser.add_argument("--load_model", type=str, required=True, help="要加载的模型路径")
     test_parser.add_argument("--test_steps", type=int, default=1000, help="测试步数")
     

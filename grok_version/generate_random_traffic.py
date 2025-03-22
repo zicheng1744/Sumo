@@ -30,6 +30,9 @@ def generate_routefile(probs, speed, N, accel, decel, max_vehicles=64):
     veh_nr_ramp = 0  # 匝道车辆计数
     total_vehicles = 0  # 总车辆计数
     
+    # 匝道车辆的最大速度需要降低，避免速度过高导致冲突
+    ramp_speed = min(speed, 15.0)  # 匝道车辆最大速度限制为15
+    
     try:
         with open(route_file_path, "w") as routes:
             print(
@@ -66,12 +69,14 @@ def generate_routefile(probs, speed, N, accel, decel, max_vehicles=64):
                 # 匝道车辆
                 if random.uniform(0, 1) < lam2 and total_vehicles < max_vehicles:
                     if random.uniform(0, 1) < lam3:  # CAV车辆
+                        # 匝道车辆以较低速度进入
                         print(
-                            f'    <vehicle id="ramp_{veh_nr_ramp}" type="CAV" route="ramp" depart="{i}" color="1,0,0" />',
+                            f'    <vehicle id="ramp_{veh_nr_ramp}" type="CAV" route="ramp" depart="{i}" departSpeed="10" color="1,0,0" />',
                             file=routes,
                         )
                     else:  # HDV车辆
-                        hdv_depart_speed = random.uniform(0.8 * speed, speed)
+                        # 匝道车辆以较低速度进入
+                        hdv_depart_speed = random.uniform(5.0, ramp_speed)
                         print(
                             f'    <vehicle id="ramp_{veh_nr_ramp}" type="HDV" route="ramp" depart="{i}" departSpeed="{hdv_depart_speed}" />',
                             file=routes,
@@ -94,7 +99,7 @@ def main():
     parser.add_argument("--main_prob", type=float, default=0.5, help="主路车辆生成概率")
     parser.add_argument("--ramp_prob", type=float, default=0.3, help="匝道车辆生成概率")
     parser.add_argument("--cav_prob", type=float, default=0.4, help="智能车辆比例")
-    parser.add_argument("--speed", type=float, default=100.0, help="车辆最大速度")
+    parser.add_argument("--speed", type=float, default=30.0, help="车辆最大速度")  # 降低默认速度至30
     parser.add_argument("--duration", type=int, default=1000, help="模拟时长")
     parser.add_argument("--accel", type=float, default=3.0, help="加速度")
     parser.add_argument("--decel", type=float, default=5.0, help="减速度")
