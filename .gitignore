@@ -3,3 +3,6 @@ __pycache__/
 tempCodeRunnerFile*
 logs/
 models/
+*.zip
+ppo_tensorboard_test/
+results/
