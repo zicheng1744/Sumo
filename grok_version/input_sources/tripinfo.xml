@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2025-03-22 15:40:01 by Eclipse SUMO sumo Version 1.21.0
+<!-- generated on 2025-03-22 15:40:55 by Eclipse SUMO sumo Version 1.21.0
 <sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
 
     <input>
@@ -35,7 +35,7 @@
     </report>
 
     <traci_server>
-        <remote-port value="17473"/>
+        <remote-port value="17760"/>
     </traci_server>
 
     <gui_only>
@@ -48,10 +48,3 @@
 
 <tripinfos xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tripinfo_file.xsd">
     <tripinfo id="main_0" depart="0.00" departLane="wm_0" departPos="5.10" departSpeed="29.60" departDelay="0.00" arrival="13.20" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="29.87" duration="13.20" routeLength="394.90" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="0.03" rerouteNo="0" devices="tripinfo_main_0" vType="HDV" speedFactor="1.12" vaporized=""/>
-    <tripinfo id="ramp_0" depart="2.00" departLane="rm_0" departPos="5.10" departSpeed="9.36" departDelay="0.00" arrival="21.90" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="29.85" duration="19.90" routeLength="405.14" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="6.11" rerouteNo="0" devices="tripinfo_ramp_0" vType="HDV" speedFactor="1.02" vaporized=""/>
-    <tripinfo id="main_1" depart="2.00" departLane="wm_0" departPos="5.10" departSpeed="0.00" departDelay="0.00" arrival="30.20" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="15.54" duration="28.20" routeLength="394.90" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="15.01" rerouteNo="0" devices="tripinfo_main_1" vType="CAV" speedFactor="0.94" vaporized=""/>
-    <tripinfo id="ramp_1" depart="3.00" departLane="rm_0" departPos="5.10" departSpeed="10.00" departDelay="0.00" arrival="34.30" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="15.41" duration="31.30" routeLength="405.14" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="17.58" rerouteNo="0" devices="tripinfo_ramp_1" vType="CAV" speedFactor="1.08" vaporized=""/>
-    <tripinfo id="ramp_2" depart="4.30" departLane="rm_0" departPos="5.10" departSpeed="5.76" departDelay="0.30" arrival="35.90" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="19.11" duration="31.60" routeLength="405.14" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="10.84" rerouteNo="0" devices="tripinfo_ramp_2" vType="HDV" speedFactor="0.66" vaporized=""/>
-    <tripinfo id="ramp_3" depart="9.00" departLane="rm_0" departPos="5.10" departSpeed="10.00" departDelay="0.00" arrival="40.10" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="16.02" duration="31.10" routeLength="405.14" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="17.31" rerouteNo="0" devices="tripinfo_ramp_3" vType="CAV" speedFactor="0.94" vaporized=""/>
-    <tripinfo id="ramp_4" depart="11.00" departLane="rm_0" departPos="5.10" departSpeed="8.53" departDelay="0.00" arrival="41.60" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="18.98" duration="30.60" routeLength="405.14" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="11.35" rerouteNo="0" devices="tripinfo_ramp_4" vType="HDV" speedFactor="0.71" vaporized=""/>
-    <tripinfo id="main_2" depart="4.00" departLane="wm_0" departPos="5.10" departSpeed="0.00" departDelay="0.00" arrival="47.40" arrivalLane="ce_0" arrivalPos="196.00" arrivalSpeed="14.89" duration="43.40" routeLength="394.90" waitingTime="2.60" waitingCount="12" stopTime="0.00" timeLoss="30.19" rerouteNo="0" devices="tripinfo_main_2" vType="CAV" speedFactor="1.03" vaporized=""/>
