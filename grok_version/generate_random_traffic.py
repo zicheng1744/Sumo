@@ -3,127 +3,103 @@ import random
 import argparse
 import time
 
-def generate_routefile(probs, speed, N, accel, decel, max_vehicles=64):
-    """生成SUMO所需的路由文件，包含随机生成的车流
+def generate_routefile(probs, speed, duration, accel, decel, max_vehicles=64):
+    """
+    Generate route file for SUMO using flow tags to create continuous traffic
     
     Args:
-        probs: 包含各种概率的字典 {'main': 主路概率, 'ramp': 匝道概率, 'CAV': 智能车概率}
-        speed: 车辆最大速度
-        N: 模拟时长/车辆生成间隔
-        accel: 加速度
-        decel: 减速度
-        max_vehicles: 最大生成车辆数量
+        probs: Dictionary containing probabilities {'main': main road prob, 'ramp': ramp prob, 'CAV': CAV ratio}
+        speed: Maximum vehicle speed
+        duration: Simulation duration
+        accel: Acceleration
+        decel: Deceleration
+        max_vehicles: If specified, limits the maximum number of vehicles
     
     Returns:
-        路由文件的路径
+        Path to the route file
     """
-    lam1 = probs["main"]  # 主路车辆生成概率
-    lam2 = probs["ramp"]  # 匝道车辆生成概率
-    lam3 = probs["CAV"]   # 智能车辆比例
+    main_prob = probs["main"]  # Main road vehicle generation probability
+    ramp_prob = probs["ramp"]  # Ramp vehicle generation probability
+    cav_prob = probs["CAV"]    # CAV proportion
     
-    # 获取路由文件的路径
+    # Get the path to the route file
     route_file_path = os.path.join(
         os.path.dirname(__file__), "input_sources", "routes.rou.xml"
     )
     
-    veh_nr_main = 0  # 主路车辆计数
-    veh_nr_ramp = 0  # 匝道车辆计数
-    total_vehicles = 0  # 总车辆计数
-    
-    # 匝道车辆的最大速度需要降低，避免速度过高导致冲突
-    ramp_speed = min(speed, 15.0)  # 匝道车辆最大速度限制为15
+    # Ramp vehicles should have lower max speed to avoid conflicts
+    ramp_speed = min(speed, 15.0)  # Limit ramp vehicle max speed to 15
     
     try:
-        with open(route_file_path, "w") as routes:
-            print(
-                f"""<routes>
-        <vType id="CAV" accel="{accel}" decel="{decel}" sigma="0.0" length="5" minGap="0.8" tau="0.5" maxSpeed="{speed}" carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0"/>
-        <vType id="HDV" accel="{accel}" decel="{decel}" sigma="0.5" length="5" minGap="2.5" tau="1.2" maxSpeed="{speed}" desiredMaxSpeed="{speed}" speedFactor="normc(1,0.2,0.2,2)" carFollowingModel="Krauss" lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5"/>
-        <route id="main" edges="wm mc ce" />
-        <route id="ramp" edges="rm mc ce" />
-        """,
-                file=routes,
-            )
+        with open(route_file_path, "w", encoding="utf-8") as routes:
+            # Start routes tag
+            routes.write("<routes>\n")
             
-            # 生成车辆，但限制最大数量为max_vehicles
-            for i in range(N):
-                if total_vehicles >= max_vehicles:
-                    break
-                    
-                # 主路车辆
-                if random.uniform(0, 1) < lam1 and total_vehicles < max_vehicles:
-                    if random.uniform(0, 1) < lam3:  # CAV车辆
-                        print(
-                            f'    <vehicle id="main_{veh_nr_main}" type="CAV" route="main" depart="{i}" color="1,0,0" />',
-                            file=routes,
-                        )
-                    else:  # HDV车辆
-                        hdv_depart_speed = random.uniform(0.8 * speed, speed)
-                        print(
-                            f'    <vehicle id="main_{veh_nr_main}" type="HDV" route="main" depart="{i}" departSpeed="{hdv_depart_speed}" />',
-                            file=routes,
-                        )
-                    veh_nr_main += 1
-                    total_vehicles += 1
-                
-                # 匝道车辆
-                if random.uniform(0, 1) < lam2 and total_vehicles < max_vehicles:
-                    if random.uniform(0, 1) < lam3:  # CAV车辆
-                        # 匝道车辆以较低速度进入
-                        print(
-                            f'    <vehicle id="ramp_{veh_nr_ramp}" type="CAV" route="ramp" depart="{i}" departSpeed="10" color="1,0,0" />',
-                            file=routes,
-                        )
-                    else:  # HDV车辆
-                        # 匝道车辆以较低速度进入
-                        hdv_depart_speed = random.uniform(5.0, ramp_speed)
-                        print(
-                            f'    <vehicle id="ramp_{veh_nr_ramp}" type="HDV" route="ramp" depart="{i}" departSpeed="{hdv_depart_speed}" />',
-                            file=routes,
-                        )
-                    veh_nr_ramp += 1
-                    total_vehicles += 1
-                    
-            print("</routes>", file=routes)
-        print(f"路由文件已生成: {route_file_path}")
-        print(f"总共生成了 {total_vehicles} 辆车 (主路: {veh_nr_main}, 匝道: {veh_nr_ramp})")
+            # Write vehicle type distribution
+            routes.write("    <!-- Vehicle Type Distribution for Flow -->\n")
+            routes.write("    <vTypeDistribution id=\"mixed\">\n")
+            routes.write(f"        <vType id=\"CAV\" accel=\"{accel}\" decel=\"{decel}\" sigma=\"0.0\" length=\"5\" minGap=\"0.8\" tau=\"0.5\" maxSpeed=\"{speed}\" \n")
+            routes.write(f"               carFollowingModel=\"IDM\" lcStrategic=\"1\" lcCooperative=\"1\" lcAssertive=\"0.5\" lcImpatience=\"0.0\" lcKeepRight=\"0\" color=\"1,0,0\" probability=\"{cav_prob}\"/>\n")
+            routes.write(f"        <vType id=\"HDV\" accel=\"{accel}\" decel=\"{decel}\" sigma=\"0.5\" length=\"5\" minGap=\"2.5\" tau=\"1.2\" maxSpeed=\"{speed}\" \n")
+            routes.write(f"               desiredMaxSpeed=\"{speed}\" speedFactor=\"normc(1,0.2,0.2,2)\" carFollowingModel=\"Krauss\" \n")
+            routes.write(f"               lcStrategic=\"0.3\" lcAssertive=\"0.5\" lcCooperative=\"0.2\" lcImpatience=\"0.5\" probability=\"{1-cav_prob}\"/>\n")
+            routes.write("    </vTypeDistribution>\n\n")
+            
+            # Write route definitions
+            routes.write("    <!-- Route Definitions -->\n")
+            routes.write("    <route id=\"main\" edges=\"wm mc ce\" />\n")
+            routes.write("    <route id=\"ramp\" edges=\"rm mc ce\" />\n\n")
+            
+            # Write flow tags
+            routes.write("    <!-- Use Flow Tags for Continuous Traffic -->\n")
+            routes.write(f"    <flow id=\"main_flow\" route=\"main\" begin=\"0\" end=\"{duration}\" probability=\"{main_prob}\" type=\"mixed\" departSpeed=\"max\"/>\n")
+            routes.write(f"    <flow id=\"ramp_flow\" route=\"ramp\" begin=\"0\" end=\"{duration}\" probability=\"{ramp_prob}\" type=\"mixed\" departSpeed=\"10\"/>\n")
+            
+            # Close routes tag
+            routes.write("</routes>\n")
+            
+        print(f"Route file generated: {route_file_path}")
+        print(f"Configuration: Main prob={main_prob}, Ramp prob={ramp_prob}, CAV ratio={cav_prob}, Duration={duration}")
     except OSError as e:
-        print(f"写入路由文件时出错: {e}")
+        print(f"Error writing route file: {e}")
         raise
 
     return route_file_path
 
 def main():
-    # 解析命令行参数
-    parser = argparse.ArgumentParser(description="生成SUMO随机车流")
-    parser.add_argument("--main_prob", type=float, default=0.5, help="主路车辆生成概率")
-    parser.add_argument("--ramp_prob", type=float, default=0.3, help="匝道车辆生成概率")
-    parser.add_argument("--cav_prob", type=float, default=0.4, help="智能车辆比例")
-    parser.add_argument("--speed", type=float, default=30.0, help="车辆最大速度")  # 降低默认速度至30
-    parser.add_argument("--duration", type=int, default=1000, help="模拟时长")
-    parser.add_argument("--accel", type=float, default=3.0, help="加速度")
-    parser.add_argument("--decel", type=float, default=5.0, help="减速度")
-    parser.add_argument("--max_vehicles", type=int, default=64, help="最大生成车辆数量")
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Generate continuous traffic for SUMO")
+    parser.add_argument("--main_prob", type=float, default=0.3, help="Main road vehicle generation probability")
+    parser.add_argument("--ramp_prob", type=float, default=0.2, help="Ramp vehicle generation probability")
+    parser.add_argument("--cav_prob", type=float, default=0.5, help="CAV proportion")
+    parser.add_argument("--speed", type=float, default=30.0, help="Maximum vehicle speed")
+    parser.add_argument("--duration", type=int, default=3600, help="Simulation duration (seconds)")
+    parser.add_argument("--accel", type=float, default=3.0, help="Acceleration")
+    parser.add_argument("--decel", type=float, default=5.0, help="Deceleration")
+    parser.add_argument("--max_vehicles", type=int, default=0, help="Maximum number of vehicles, 0 means unlimited")
     
     args = parser.parse_args()
     
-    # 设置车流生成参数
+    # Set traffic generation parameters
     probs = {
         "main": args.main_prob,
         "ramp": args.ramp_prob,
         "CAV": args.cav_prob
     }
     
-    print(f"生成参数：主路概率={args.main_prob}, 匝道概率={args.ramp_prob}, CAV比例={args.cav_prob}")
-    print(f"车辆速度={args.speed}, 模拟时长={args.duration}, 加速度={args.accel}, 减速度={args.decel}")
-    print(f"最大车辆数量={args.max_vehicles}")
+    print(f"Generation parameters: Main prob={args.main_prob}, Ramp prob={args.ramp_prob}, CAV ratio={args.cav_prob}")
+    print(f"Vehicle speed={args.speed}, Duration={args.duration}s, Accel={args.accel}, Decel={args.decel}")
+    if args.max_vehicles > 0:
+        print(f"Maximum vehicles={args.max_vehicles}")
+    else:
+        print("No limit on maximum vehicles")
     
-    # 生成路由文件
+    # Generate route file
     start_time = time.time()
     route_file_path = generate_routefile(probs, args.speed, args.duration, args.accel, args.decel, args.max_vehicles)
     end_time = time.time()
     
-    print(f"成功生成路由文件，用时 {end_time - start_time:.2f} 秒")
+    print(f"Successfully generated route file in {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
     main() 

@@ -1,71 +1,18 @@
 <routes>
-        <vType id="CAV" accel="3.0" decel="5.0" sigma="0.0" length="5" minGap="0.8" tau="0.5" maxSpeed="30.0" carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0"/>
-        <vType id="HDV" accel="3.0" decel="5.0" sigma="0.5" length="5" minGap="2.5" tau="1.2" maxSpeed="30.0" desiredMaxSpeed="30.0" speedFactor="normc(1,0.2,0.2,2)" carFollowingModel="Krauss" lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5"/>
-        <route id="main" edges="wm mc ce" />
-        <route id="ramp" edges="rm mc ce" />
-        
-    <vehicle id="main_0" type="HDV" route="main" depart="0" departSpeed="29.602371903463016" />
-    <vehicle id="main_1" type="CAV" route="main" depart="2" color="1,0,0" />
-    <vehicle id="ramp_0" type="HDV" route="ramp" depart="2" departSpeed="9.356431096562929" />
-    <vehicle id="ramp_1" type="CAV" route="ramp" depart="3" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_2" type="CAV" route="main" depart="4" color="1,0,0" />
-    <vehicle id="ramp_2" type="HDV" route="ramp" depart="4" departSpeed="5.755154285906135" />
-    <vehicle id="main_3" type="HDV" route="main" depart="6" departSpeed="25.790410130735435" />
-    <vehicle id="main_4" type="CAV" route="main" depart="9" color="1,0,0" />
-    <vehicle id="ramp_3" type="CAV" route="ramp" depart="9" departSpeed="10" color="1,0,0" />
-    <vehicle id="ramp_4" type="HDV" route="ramp" depart="11" departSpeed="8.525409289650995" />
-    <vehicle id="main_5" type="CAV" route="main" depart="12" color="1,0,0" />
-    <vehicle id="ramp_5" type="CAV" route="ramp" depart="13" departSpeed="10" color="1,0,0" />
-    <vehicle id="ramp_6" type="CAV" route="ramp" depart="17" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_6" type="CAV" route="main" depart="18" color="1,0,0" />
-    <vehicle id="main_7" type="HDV" route="main" depart="20" departSpeed="28.607534082521415" />
-    <vehicle id="main_8" type="HDV" route="main" depart="21" departSpeed="24.089401898096455" />
-    <vehicle id="ramp_7" type="HDV" route="ramp" depart="21" departSpeed="10.810067321587091" />
-    <vehicle id="ramp_8" type="CAV" route="ramp" depart="22" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_9" type="CAV" route="main" depart="25" color="1,0,0" />
-    <vehicle id="main_10" type="HDV" route="main" depart="27" departSpeed="26.57949182013039" />
-    <vehicle id="main_11" type="HDV" route="main" depart="29" departSpeed="25.679977513515606" />
-    <vehicle id="main_12" type="HDV" route="main" depart="30" departSpeed="25.119907918916013" />
-    <vehicle id="ramp_9" type="HDV" route="ramp" depart="30" departSpeed="10.60277007782979" />
-    <vehicle id="ramp_10" type="HDV" route="ramp" depart="31" departSpeed="8.685602475121756" />
-    <vehicle id="main_13" type="HDV" route="main" depart="33" departSpeed="24.896904274327262" />
-    <vehicle id="main_14" type="CAV" route="main" depart="34" color="1,0,0" />
-    <vehicle id="ramp_11" type="CAV" route="ramp" depart="34" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_15" type="CAV" route="main" depart="35" color="1,0,0" />
-    <vehicle id="main_16" type="CAV" route="main" depart="36" color="1,0,0" />
-    <vehicle id="ramp_12" type="CAV" route="ramp" depart="36" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_17" type="HDV" route="main" depart="37" departSpeed="25.288667470881848" />
-    <vehicle id="ramp_13" type="CAV" route="ramp" depart="37" departSpeed="10" color="1,0,0" />
-    <vehicle id="ramp_14" type="CAV" route="ramp" depart="38" departSpeed="10" color="1,0,0" />
-    <vehicle id="ramp_15" type="CAV" route="ramp" depart="40" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_18" type="CAV" route="main" depart="41" color="1,0,0" />
-    <vehicle id="ramp_16" type="HDV" route="ramp" depart="41" departSpeed="5.780999610511851" />
-    <vehicle id="main_19" type="HDV" route="main" depart="42" departSpeed="24.001866423859102" />
-    <vehicle id="main_20" type="HDV" route="main" depart="43" departSpeed="28.164282848770256" />
-    <vehicle id="main_21" type="CAV" route="main" depart="45" color="1,0,0" />
-    <vehicle id="main_22" type="CAV" route="main" depart="46" color="1,0,0" />
-    <vehicle id="main_23" type="HDV" route="main" depart="47" departSpeed="27.036787738340536" />
-    <vehicle id="ramp_17" type="HDV" route="ramp" depart="47" departSpeed="14.107716461861871" />
-    <vehicle id="ramp_18" type="HDV" route="ramp" depart="48" departSpeed="9.815026324743515" />
-    <vehicle id="main_24" type="HDV" route="main" depart="50" departSpeed="27.372750789032303" />
-    <vehicle id="ramp_19" type="CAV" route="ramp" depart="50" departSpeed="10" color="1,0,0" />
-    <vehicle id="ramp_20" type="CAV" route="ramp" depart="56" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_25" type="CAV" route="main" depart="57" color="1,0,0" />
-    <vehicle id="ramp_21" type="HDV" route="ramp" depart="57" departSpeed="9.754700283310953" />
-    <vehicle id="main_26" type="CAV" route="main" depart="58" color="1,0,0" />
-    <vehicle id="main_27" type="HDV" route="main" depart="59" departSpeed="29.547535355309435" />
-    <vehicle id="ramp_22" type="CAV" route="ramp" depart="59" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_28" type="CAV" route="main" depart="60" color="1,0,0" />
-    <vehicle id="ramp_23" type="HDV" route="ramp" depart="60" departSpeed="9.809748789879105" />
-    <vehicle id="ramp_24" type="CAV" route="ramp" depart="61" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_29" type="CAV" route="main" depart="62" color="1,0,0" />
-    <vehicle id="main_30" type="CAV" route="main" depart="65" color="1,0,0" />
-    <vehicle id="main_31" type="HDV" route="main" depart="66" departSpeed="24.44506003033769" />
-    <vehicle id="ramp_25" type="HDV" route="ramp" depart="66" departSpeed="9.774900817106452" />
-    <vehicle id="main_32" type="HDV" route="main" depart="67" departSpeed="29.21064501110338" />
-    <vehicle id="ramp_26" type="HDV" route="ramp" depart="70" departSpeed="7.096164055990812" />
-    <vehicle id="main_33" type="HDV" route="main" depart="72" departSpeed="26.988753355200505" />
-    <vehicle id="main_34" type="HDV" route="main" depart="74" departSpeed="27.56187742755362" />
-    <vehicle id="ramp_27" type="CAV" route="ramp" depart="75" departSpeed="10" color="1,0,0" />
-    <vehicle id="main_35" type="CAV" route="main" depart="76" color="1,0,0" />
+    <!-- Vehicle Type Distribution for Flow -->
+    <vTypeDistribution id="mixed">
+        <vType id="CAV" accel="3.0" decel="5.0" sigma="0.0" length="5" minGap="0.8" tau="0.5" maxSpeed="30.0" 
+               carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0" color="1,0,0" probability="0.5"/>
+        <vType id="HDV" accel="3.0" decel="5.0" sigma="0.5" length="5" minGap="2.5" tau="1.2" maxSpeed="30.0" 
+               desiredMaxSpeed="30.0" speedFactor="normc(1,0.2,0.2,2)" carFollowingModel="Krauss" 
+               lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5" probability="0.5"/>
+    </vTypeDistribution>
+
+    <!-- Route Definitions -->
+    <route id="main" edges="wm mc ce" />
+    <route id="ramp" edges="rm mc ce" />
+
+    <!-- Use Flow Tags for Continuous Traffic -->
+    <flow id="main_flow" route="main" begin="0" end="3600" probability="0.3" type="mixed" departSpeed="max"/>
+    <flow id="ramp_flow" route="ramp" begin="0" end="3600" probability="0.2" type="mixed" departSpeed="10"/>
 </routes>

@@ -1,15 +1,25 @@
 @echo off
-echo SUMO-RL 训练批处理脚本
+echo SUMO-RL Training Batch Script
 echo ===================================
 
-REM 首先生成新的随机车流
-echo 正在生成随机车流...
-python generate_random_traffic.py --main_prob 0.5 --ramp_prob 0.3 --cav_prob 0.5 --duration 1000 --speed 30.0 --max_vehicles 64
-echo 车流生成完成
+REM Kill any existing SUMO and TRACI processes
+echo Cleaning up existing SUMO processes...
+taskkill /F /IM sumo.exe /T 2>nul
+taskkill /F /IM sumo-gui.exe /T 2>nul
+timeout /t 2 /nobreak >nul
 
-REM 运行修复版训练脚本
-echo 开始训练...
-python train.py train --total_timesteps 300000 --learning_rate 0.0003 --episode_length 15000 
+REM Generate sustainable traffic flow
+echo Generating traffic...
+python generate_random_traffic.py --main_prob 0.3 --ramp_prob 0.2 --cav_prob 0.5 --duration 3600 --speed 30.0
+echo Traffic generation completed
 
-echo 训练完成！
+REM Wait a moment to ensure resources are freed
+echo Waiting for resources to be freed...
+timeout /t 3 /nobreak >nul
+
+REM Run optimized training script
+echo Starting training...
+python train.py --mode train --total_timesteps 30000 --learning_rate 1e-3 --min_learning_rate 1e-5 --lr_schedule linear --episode_length 15000 --n_steps 2048 --batch_size 128 --n_epochs 8 --ent_coef 0.01 --max_grad_norm 0.5 --action_scale 10.0 --max_speed 30.0
+echo Training completed
+
 pause 

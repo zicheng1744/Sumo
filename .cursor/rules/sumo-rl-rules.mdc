@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
+
+powershell不支持&&的语法，每次跑代码前需要先cd到grok_version文件夹里后再运行脚本
+
+项目背景
+这是一个智能交通仿真项目，使用SUMO模拟高速公路汇入场景，通过PPO（Proximal Policy Optimization）算法训练CAV（Connected and Autonomous Vehicles）优化交通流。项目包括环境定义、路由生成、训练脚本、日志记录和结果可视化等模块。
+
+编码约定
+语言: Python 3.x
+命名规则:
+类名使用驼峰命名法（CamelCase），如SumoMergeEnv。
+函数和变量使用下划线命名法（snake_case），如generate_routefile。
+常量使用全大写，如LOG_FILE。
+代码结构:
+每个主要模块（如环境、路由生成、训练）应独立成文件。
+使用面向对象设计，核心逻辑封装在类中。
+依赖:
+traci: 用于与SUMO交互。
+gymnasium: 强化学习环境接口。
+stable_baselines3: PPO算法实现。
+numpy, matplotlib: 数据处理和可视化。
+logging: 日志记录。
