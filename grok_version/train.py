@@ -11,10 +11,7 @@ import gymnasium as gym
 from gymnasium.spaces import Box
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback, CallbackList
-from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback, CallbackList, EvalCallback
-# 导入TensorboardCallback，或使用参数启用tensorboard
-from stable_baselines3.common.logger import configure
+from stable_baselines3.common.callbacks import BaseCallback
 import math
 import json
 import traceback
@@ -35,10 +32,12 @@ if 'SUMO_HOME' not in os.environ:
 
 # 设置日志格式
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-LOG_FILE = f"training_{current_time}.log"
+LOG_DIR = "./results/training_session_{}".format(current_time)
+os.makedirs(LOG_DIR, exist_ok=True)  # 确保目录存在
+LOG_FILE = os.path.join(LOG_DIR, f"training_{current_time}.log")
 log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 root_logger = logging.getLogger()
-root_logger.setLevel(logging.ERROR)
+root_logger.setLevel(logging.INFO)
 
 # 文件处理程序
 file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
@@ -90,6 +89,13 @@ class SumoMergeEnv(gym.Env):
             'vehicle_counts': [],
             'lead_cav_speeds': []  # 领头CAV速度记录
         }
+        
+        # 添加速度数据记录相关属性
+        self.speed_record_interval = 10  # 每1步记录一次
+        data_dir = os.path.join(LOG_DIR, "data")
+        os.makedirs(data_dir, exist_ok=True)  # 确保data目录存在
+        self.speed_file = os.path.join(data_dir, f"speed_data_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+        self.total_steps = 0  # 总步数计数器
         
         # 动作历史记录
         self.actions_history = []
@@ -187,8 +193,6 @@ class SumoMergeEnv(gym.Env):
                         # 如果是领头CAV且速度较低，施加额外加速
                         if current_speed < self.max_speed * 0.5:
                             new_speed = np.clip(current_speed + max(actions_to_apply[i], 0.5), 0, self.max_speed)
-                            # 记录首车速度变化日志
-                            logging.info(f"Step {self.current_step}, 领头CAV {cav_id}: 当前速度={current_speed:.2f}, 动作值={actions_to_apply[i]:.2f}, 新速度={new_speed:.2f}")
                         else:
                             new_speed = np.clip(current_speed + actions_to_apply[i], 0, self.max_speed)
                     else:
@@ -262,10 +266,6 @@ class SumoMergeEnv(gym.Env):
             w_lead * lead_speed_score
         )
         
-        # 记录日志
-        if self.current_step % 100 == 0:  # 每100步记录一次，减少日志量
-            logging.info(f"奖励计算: 速度={speed_score:.2f}, 领头速度={lead_speed_score:.2f}, 总奖励={reward:.2f}")
-        
         return reward  # 最终奖励在0-1范围内
 
     def step(self, action):
@@ -282,6 +282,7 @@ class SumoMergeEnv(gym.Env):
         # 获取下一个状态
         traci.simulationStep()
         self.current_step += 1
+        self.total_steps += 1  # 累加总步数
         
         # 更新车辆ID列表
         self._update_vehicle_ids()
@@ -292,15 +293,16 @@ class SumoMergeEnv(gym.Env):
         # 计算奖励
         reward = self._calculate_reward()
         
-        # 判断是否完成
-        done = self._is_done()
-        
         # 计算并保存统计信息
         speeds = [traci.vehicle.getSpeed(veh_id) for veh_id in self.cav_ids if veh_id in traci.vehicle.getIDList()]
         avg_speed = sum(speeds) / len(speeds) if speeds else 0
         self.stats['avg_speeds'].append(avg_speed)
         self.stats['vehicle_counts'].append(len(self.cav_ids))
         self.stats['rewards'].append(reward)
+        
+        # 记录速度数据(每步记录一次)
+        if self.total_steps % self.speed_record_interval == 0:
+            self.record_speed_data(avg_speed)
         
         # 记录领头CAV速度
         lead_cavs, lead_speeds = self._identify_lead_cavs()
@@ -324,7 +326,7 @@ class SumoMergeEnv(gym.Env):
         # 增加计数器阈值，避免过早终止
         early_termination = (self.congestion_count > 100) or (self.low_reward_count > 200)
         # 终止条件: 如果没有车辆了，提前结束
-        no_vehicles = len(self.cav_ids) == 0 and len(self.hdv_ids) == 0
+        no_vehicles = (len(self.cav_ids) + len(self.hdv_ids)) == 0
         
         # 判断终止(terminated)和截断(truncated)
         # terminated: 环境自然终止（如无车辆、拥堵或持续低奖励）
@@ -364,7 +366,7 @@ class SumoMergeEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
-        """重置环境，可以包含预热阶段"""
+        """重置环境，包含预热阶段"""
         # 关闭现有的SUMO连接
         self.close()
         
@@ -546,6 +548,12 @@ class SumoMergeEnv(gym.Env):
         # 无论如何都要确保环境标记为未初始化
         self._is_initialized = False
     
+    def record_speed_data(self, avg_speed):
+        """记录当前步骤的平均车速数据到CSV文件"""
+        # 写入CSV文件
+        with open(self.speed_file, 'a', encoding='utf-8') as f:
+            f.write(f"{self.total_steps},{avg_speed:.6f}\n")
+    
     def _update_vehicle_ids(self):
         """更新车辆ID列表"""
         try:
@@ -557,28 +565,10 @@ class SumoMergeEnv(gym.Env):
             self.cav_ids = []
             self.hdv_ids = []
 
-    def _is_done(self):
-        """判断当前回合是否应该自然终止（不包括达到最大步数的情况）
-        
-        Returns:
-            bool: 如果环境应该自然终止，则返回True，否则返回False
-        """
-        # 注意：到达最大步数的情况将在step方法中被作为truncated处理
-        # 这个方法只检查其他终止条件，用于决定terminated的值
-        
-        # 检查是否所有车辆已离开
-        if len(self.cav_ids) == 0 and len(self.hdv_ids) == 0:
-            logging.info("回合结束: 所有车辆已离开")
-            return True
-        
-        # 其他可能的终止条件可以在这里添加
-        
-        return False
-
 
 # 自定义回调，用于记录训练信息
 class TrainingCallback(BaseCallback):
-    def __init__(self, verbose=0, save_dir="./results", save_freq=1000):
+    def __init__(self, verbose=0, save_dir=LOG_DIR, save_freq=1000):
         super(TrainingCallback, self).__init__(verbose)
         self.episode_rewards = []
         self.episode_lengths = []
@@ -602,11 +592,12 @@ class TrainingCallback(BaseCallback):
         # 创建CSV文件记录每回合的结果
         # 修改：使用当前时间戳创建唯一的CSV文件名
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        # 获取data目录（在上一级目录中）
-        data_dir = os.path.dirname(os.path.dirname(self.save_dir)) + "/data"
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
+
+        # 使用LOG_DIR作为CSV文件的存储路径
+        data_dir = os.path.join(LOG_DIR, "data")
         self.csv_file = os.path.join(data_dir, f"training_episodes_{timestamp}.csv")
+
+        # 创建并写入CSV文件
         with open(self.csv_file, 'w', encoding='utf-8') as f:
             f.write("episode,reward,length,avg_speed,avg_vehicle_count,success\n")
 
@@ -662,9 +653,6 @@ class TrainingCallback(BaseCallback):
             self.current_speeds = []
             self.current_vehicle_counts = []
             
-            # 每5个回合更新图表（但不保存，只在训练结束时保存）
-            if self.episode_count % 5 == 0:
-                self.update_plots()
         
         # 如果达到保存频率且不是训练结束，只保存临时文件，不保存模型
         # 模型只在训练结束时保存
@@ -678,38 +666,11 @@ class TrainingCallback(BaseCallback):
         # 训练结束时保存所有图表
         self.plot_training_progress()
     
-    def update_plots(self):
-        """更新图表但不保存，只在内存中更新以便于训练结束时保存"""
-        if not self.episode_rewards:
-            return
-        
-        # 此方法只更新图表数据，但不保存，减少文件I/O
-        pass
     
     def plot_training_progress(self):
         """绘制训练进度的图表，专注于episode-based的统计"""
         if not self.episode_rewards:
             return
-            
-        # 绘制回合奖励曲线
-        plt.figure(figsize=(10, 6))
-        plt.plot(range(1, len(self.episode_rewards) + 1), self.episode_rewards)
-        plt.title('Episode Rewards')
-        plt.xlabel('Episode')
-        plt.ylabel('Reward')
-        plt.grid(True)
-        plt.savefig(os.path.join(self.save_dir, "episode_rewards.png"))
-        plt.close()
-        
-        # 绘制回合长度曲线
-        plt.figure(figsize=(10, 6))
-        plt.plot(range(1, len(self.episode_lengths) + 1), self.episode_lengths)
-        plt.title('Episode Length')
-        plt.xlabel('Episode')
-        plt.ylabel('Steps')
-        plt.grid(True)
-        plt.savefig(os.path.join(self.save_dir, "episode_lengths.png"))
-        plt.close()
         
         # 绘制平均速度曲线
         if self.average_speeds:
@@ -722,53 +683,13 @@ class TrainingCallback(BaseCallback):
             plt.savefig(os.path.join(self.save_dir, "episode_avg_speeds.png"))
             plt.close()
         
-        # 绘制平均车辆数曲线
-        if self.vehicle_counts:
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(1, len(self.vehicle_counts) + 1), self.vehicle_counts)
-            plt.title('Average Vehicle Count per Episode')
-            plt.xlabel('Episode')
-            plt.ylabel('Vehicle Count')
-            plt.grid(True)
-            plt.savefig(os.path.join(self.save_dir, "episode_vehicle_counts.png"))
-            plt.close()
-        
-        # 绘制成功率曲线
-        if self.success_rates:
-            # 计算滑动平均成功率
-            window_size = min(10, len(self.success_rates))
-            if window_size > 0:
-                success_avg = np.convolve(self.success_rates, np.ones(window_size)/window_size, mode='valid')
-                plt.figure(figsize=(10, 6))
-                plt.plot(range(window_size, len(self.success_rates) + 1), success_avg)
-                plt.title(f'{window_size}-Episode Moving Average Success Rate')
-                plt.xlabel('Episode')
-                plt.ylabel('Success Rate')
-                plt.ylim(0, 1)
-                plt.grid(True)
-                plt.savefig(os.path.join(self.save_dir, "episode_success_rate.png"))
-                plt.close()
-        
-        # 计算并绘制移动平均奖励
-        window_size = min(10, len(self.episode_rewards))
-        if window_size > 0:
-            moving_avg = np.convolve(self.episode_rewards, np.ones(window_size)/window_size, mode='valid')
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(window_size, len(self.episode_rewards) + 1), moving_avg)
-            plt.title(f'{window_size}-Episode Moving Average Reward')
-            plt.xlabel('Episode')
-            plt.ylabel('Average Reward')
-            plt.grid(True)
-            plt.savefig(os.path.join(self.save_dir, "moving_avg_rewards.png"))
-            plt.close()
-        
         print(f"训练图表已保存到 {self.save_dir}")
 
 
 # 在TrainingCallback类之后，添加新的PPOMetricsCallback类
 class PPOMetricsCallback(BaseCallback):
     """记录PPO训练指标的回调"""
-    def __init__(self, verbose=0, save_dir="./results"):
+    def __init__(self, verbose=0, save_dir=LOG_DIR):
         super(PPOMetricsCallback, self).__init__(verbose)
         self.save_dir = save_dir
         self.metrics_history = {
@@ -799,19 +720,21 @@ class PPOMetricsCallback(BaseCallback):
         # 确保结果目录存在
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-            
+          
+###############################################  
         # 创建CSV文件
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.csv_file = os.path.join(save_dir, f"ppo_metrics.csv")
-        self.reward_analysis_file = os.path.join(save_dir, f"reward_decay.csv")
+        data_dir = os.path.join(LOG_DIR, "data")
+        self.csv_file = os.path.join(data_dir, f"ppo_metrics.csv")
+        #self.reward_analysis_file = os.path.join(data_dir, f"reward_decay.csv")
         
         with open(self.csv_file, 'w', encoding='utf-8') as f:
             header = ','.join(self.metrics_history.keys())
             f.write(f"{header}\n")
             
-        with open(self.reward_analysis_file, 'w', encoding='utf-8') as f:
+        """with open(self.reward_analysis_file, 'w', encoding='utf-8') as f:
             header = ','.join(self.reward_decay_analysis.keys())
-            f.write(f"{header}\n")
+            f.write(f"{header}\n")"""
+###############################################
 
     def _on_step(self) -> bool:
         # 不需要每步执行操作
@@ -829,7 +752,7 @@ class PPOMetricsCallback(BaseCallback):
             if 'r' in last_episode and 'l' in last_episode:
                 episode = len(self.reward_decay_analysis['episode']) + 1
                 reward = last_episode['r']
-                episode_length = last_episode['l']
+                """episode_length = last_episode['l']
                 
                 # 获取平均速度和车辆数量
                 avg_speed = 0
@@ -837,7 +760,7 @@ class PPOMetricsCallback(BaseCallback):
                 if 'avg_speed' in last_episode:
                     avg_speed = last_episode['avg_speed']
                 if 'cav_count' in last_episode:
-                    vehicle_count = last_episode['cav_count']
+                    vehicle_count = last_episode['cav_count']"""
                 
                 # 计算衰减率
                 decay_rate = 0
@@ -846,21 +769,21 @@ class PPOMetricsCallback(BaseCallback):
                     if prev_reward > 0:
                         decay_rate = (prev_reward - reward) / prev_reward
                     
-                # 保存数据
+                """# 保存数据
                 self.reward_decay_analysis['episode'].append(episode)
                 self.reward_decay_analysis['reward'].append(reward)
                 self.reward_decay_analysis['episode_length'].append(episode_length)
                 self.reward_decay_analysis['avg_speed'].append(avg_speed)
                 self.reward_decay_analysis['vehicle_count'].append(vehicle_count)
-                self.reward_decay_analysis['decay_rate'].append(decay_rate)
+                self.reward_decay_analysis['decay_rate'].append(decay_rate)"""
                 
                 # 如果衰减率超过阈值，记录警告
                 if decay_rate > 0.2:  # 衰减率超过20%
                     logging.error(f"奖励明显下降! 回合{episode}: 前值={prev_reward:.2f}, 当前值={reward:.2f}, 衰减率={decay_rate:.2f}")
                 
-                # 将数据写入CSV
+                """# 将数据写入CSV
                 with open(self.reward_analysis_file, 'a', encoding='utf-8') as f:
-                    f.write(f"{episode},{reward},{episode_length},{avg_speed},{vehicle_count},{decay_rate}\n")
+                    f.write(f"{episode},{reward},{episode_length},{avg_speed},{vehicle_count},{decay_rate}\n")"""
         
         # 将当前指标写入CSV
         metrics_values = []
@@ -904,96 +827,40 @@ class PPOMetricsCallback(BaseCallback):
             if successes:
                 success_rate = sum(successes) / len(successes)
         
-        # 打印格式化的训练统计表格
-        print("\n" + "-" * 40)
-        print("| rollout/                |            |")
-        print(f"|    ep_len_mean          | {ep_len_mean:.2e}   |")
-        print(f"|    ep_rew_mean          | {ep_rew_mean:.0f}        |")
-        print(f"|    success_rate         | {success_rate:.1f}          |")
-        print("| time/                   |            |")
-        print(f"|    fps                  | {latest_metrics.get('fps', 0):.0f}         |")
-        print(f"|    iterations           | {latest_metrics.get('iterations', 0):.0f}         |")
-        print(f"|    time_elapsed         | {latest_metrics.get('time_elapsed', 0):.0f}       |")
-        print(f"|    total_timesteps      | {latest_metrics.get('total_timesteps', 0):.0f}      |")
-        print("| train/                  |            |")
-        print(f"|    approx_kl            | {latest_metrics.get('approx_kl', 0):.8f} |")
-        print(f"|    clip_fraction        | {latest_metrics.get('clip_fraction', 0):.3f}      |")
-        print(f"|    clip_range           | {latest_metrics.get('clip_range', 0.2):.1f}        |")
-        print(f"|    entropy_loss         | {latest_metrics.get('entropy_loss', 0):.0f}        |")
-        print(f"|    explained_variance   | {latest_metrics.get('explained_variance', 0):.3f}      |")
-        print(f"|    learning_rate        | {latest_metrics.get('learning_rate', 0):.6f}   |")
-        print(f"|    loss                 | {latest_metrics.get('loss', 0):.3f}     |")
-        print(f"|    n_updates            | {latest_metrics.get('n_updates', 0):.0f}        |")
-        print(f"|    policy_gradient_loss | {latest_metrics.get('policy_gradient_loss', 0):.4f}    |")
-        print(f"|    std                  | {latest_metrics.get('std', 0):.2f}       |")
-        print(f"|    value_loss           | {latest_metrics.get('value_loss', 0):.2f}       |")
-        print("-" * 40)
+        # 打印分隔线和标题
+        logging.info("=" * 50)
+        logging.info("训练指标摘要:")
+        logging.info("-" * 50)
+        
+        # 打印回合统计信息
+        logging.info(f"回合统计: 平均长度={ep_len_mean:.1f} | 平均奖励={ep_rew_mean:.4f} | 成功率={success_rate:.2f}")
+        
+        # 打印关键PPO指标
+        logging.info("-" * 50)
+        logging.info("PPO指标:")
+        
+        # 选择重要的指标进行打印
+        key_metrics = ['learning_rate', 'loss', 'approx_kl', 'explained_variance', 'entropy_loss', 'clip_fraction']
+        for key in key_metrics:
+            if key in latest_metrics:
+                logging.info(f"  {key}: {latest_metrics[key]:.6f}")
+        
+        # 打印性能指标
+        if 'fps' in latest_metrics:
+            logging.info(f"性能: {latest_metrics['fps']:.1f} FPS")
+        
+        # 打印进度
+        if 'total_timesteps' in latest_metrics and 'time_elapsed' in latest_metrics:
+            logging.info(f"进度: 总步数={latest_metrics['total_timesteps']} | 已用时间={latest_metrics['time_elapsed']:.2f}秒")
+        
+        logging.info("=" * 50)
 
     def _on_training_end(self) -> None:
         # 训练结束时，生成图表
-        self.plot_metrics()
-        self.analyze_reward_decay()
-        
-    def plot_metrics(self):
-        """绘制PPO指标图表"""
-        # 绘制所有指标
-        for key, values in self.metrics_history.items():
-            if not values:
-                continue
-                
-            plt.figure(figsize=(10, 6))
-            plt.plot(values)
-            plt.title(f'PPO {key} over Training')
-            plt.xlabel('Iteration')
-            plt.ylabel(key)
-            plt.grid(True)
-            plt.savefig(os.path.join(self.save_dir, f"ppo_{key}.png"))
-            plt.close()
+        pass
+
             
-    def analyze_reward_decay(self):
-        """分析奖励衰减并生成图表"""
-        if not self.reward_decay_analysis['episode']:
-            return
-            
-        # 绘制奖励随回合变化图
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.reward_decay_analysis['episode'], self.reward_decay_analysis['reward'])
-        plt.title('Reward per Episode')
-        plt.xlabel('Episode')
-        plt.ylabel('Reward')
-        plt.grid(True)
-        plt.savefig(os.path.join(self.save_dir, "reward_analysis.png"))
-        plt.close()
         
-        # 绘制奖励衰减率图
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.reward_decay_analysis['episode'][1:], self.reward_decay_analysis['decay_rate'][1:])  # 跳过第一个元素，因为初始衰减率无意义
-        plt.title('Reward Decay Rate')
-        plt.xlabel('Episode')
-        plt.ylabel('Decay Rate')
-        plt.grid(True)
-        plt.savefig(os.path.join(self.save_dir, "reward_decay_rate.png"))
-        plt.close()
-        
-        # 绘制奖励与车辆数量的关系
-        plt.figure(figsize=(10, 6))
-        plt.scatter(self.reward_decay_analysis['vehicle_count'], self.reward_decay_analysis['reward'])
-        plt.title('Reward vs Vehicle Count')
-        plt.xlabel('Vehicle Count')
-        plt.ylabel('Reward')
-        plt.grid(True)
-        plt.savefig(os.path.join(self.save_dir, "reward_vs_vehicles.png"))
-        plt.close()
-        
-        # 绘制奖励与平均速度的关系
-        plt.figure(figsize=(10, 6))
-        plt.scatter(self.reward_decay_analysis['avg_speed'], self.reward_decay_analysis['reward'])
-        plt.title('Reward vs Average Speed')
-        plt.xlabel('Average Speed')
-        plt.ylabel('Reward')
-        plt.grid(True)
-        plt.savefig(os.path.join(self.save_dir, "reward_vs_speed.png"))
-        plt.close()
 
 
 def setup_logging(log_file=None):
@@ -1004,7 +871,7 @@ def setup_logging(log_file=None):
     """
     # 创建根日志器
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.ERROR)  # 修改：只记录ERROR级别的日志
+    root_logger.setLevel(logging.INFO)  # 修改：只记录ERROR级别的日志
     
     # 清除现有的处理器
     for handler in root_logger.handlers[:]:
@@ -1012,7 +879,7 @@ def setup_logging(log_file=None):
     
     # 创建控制台处理器
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.ERROR)  # 修改：控制台只显示ERROR级别
+    console_handler.setLevel(logging.INFO)  # 修改：控制台只显示ERROR级别
     
     # 创建格式化器
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -1024,7 +891,7 @@ def setup_logging(log_file=None):
     # 如果提供了日志文件路径，添加文件处理器
     if log_file:
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
-        file_handler.setLevel(logging.ERROR)  # 修改：文件也只记录ERROR级别
+        file_handler.setLevel(logging.INFO)  # 修改：文件也只记录ERROR级别
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
         logging.error(f"日志文件路径: {log_file}")  # 使用error级别记录这条信息
@@ -1033,7 +900,7 @@ def setup_logging(log_file=None):
 
 
 def train(
-    save_dir="./results",
+    save_dir=LOG_DIR,
     gui=False,
     total_timesteps=300000,
     learning_rate=1e-3,
@@ -1075,13 +942,13 @@ def train(
         policy: 策略类型
     """
     # 创建基本的结果目录
-    base_dir = save_dir
+    base_dir = "./results"
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
     
     # 创建当前训练会话专用目录（使用时间戳）
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    session_dir = os.path.join(base_dir, f"training_session_{timestamp}")
+    session_dir = LOG_DIR
     
     # 创建所需子目录
     models_dir = os.path.join(session_dir, "models")
@@ -1094,8 +961,7 @@ def train(
         os.makedirs(dir_path, exist_ok=True)
     
     # 设置日志
-    log_file = os.path.join(logs_dir, f"training_{timestamp}.log")
-    setup_logging(log_file)
+    setup_logging(LOG_FILE)
     
     # 记录训练参数
     logging.error(f"训练会话目录: {session_dir}")
@@ -1215,7 +1081,7 @@ def train(
                 f.write(f"  最低回合奖励: {min(rewards):.2f}\n")
             f.write("\n")
             f.write("文件位置:\n")
-            f.write(f"  日志: {log_file}\n")
+            f.write(f"  日志: {LOG_FILE}\n")
             f.write(f"  模型: {final_model_path}\n")
             f.write(f"  图表: {plots_dir}\n")
             f.write(f"  数据: {data_dir}\n")

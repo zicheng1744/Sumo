@@ -19,7 +19,7 @@ timeout /t 3 /nobreak >nul
 
 REM Run optimized training script
 echo Starting training...
-python train.py --mode train --total_timesteps 30000 --learning_rate 1e-3 --min_learning_rate 1e-5 --lr_schedule linear --episode_length 15000 --n_steps 2048 --batch_size 128 --n_epochs 8 --ent_coef 0.01 --max_grad_norm 0.5 --action_scale 10.0 --max_speed 30.0
+python train.py --mode train --total_timesteps 20000 --learning_rate 1e-3 --min_learning_rate 1e-5 --lr_schedule linear --episode_length 15000 --n_steps 2048 --batch_size 128 --n_epochs 8 --ent_coef 0.01 --max_grad_norm 0.5 --action_scale 10.0 --max_speed 30.0
 echo Training completed
 
 pause 
