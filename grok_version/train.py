@@ -595,10 +595,10 @@ class TrainingCallback(BaseCallback):
 
         # 使用LOG_DIR作为CSV文件的存储路径
         data_dir = os.path.join(LOG_DIR, "data")
-        self.csv_file = os.path.join(data_dir, f"training_episodes_{timestamp}.csv")
+        self.training_episodes_csv = os.path.join(data_dir, f"training_episodes_{timestamp}.csv")
 
         # 创建并写入CSV文件
-        with open(self.csv_file, 'w', encoding='utf-8') as f:
+        with open(self.training_episodes_csv, 'w', encoding='utf-8') as f:
             f.write("episode,reward,length,avg_speed,avg_vehicle_count,success\n")
 
     def _on_training_start(self) -> None:
@@ -643,7 +643,7 @@ class TrainingCallback(BaseCallback):
                 logging.error(f"回合 {self.episode_count} 完成: 奖励={self.current_episode_reward:.2f}, 平均速度={avg_speed:.2f}")
             
             # 将结果写入CSV文件
-            with open(self.csv_file, 'a', encoding='utf-8') as f:
+            with open(self.training_episodes_csv, 'a', encoding='utf-8') as f:
                 f.write(f"{self.episode_count},{self.current_episode_reward:.6f},{self.current_episode_length},"
                        f"{avg_speed:.6f},{avg_vehicle_count:.6f},{1 if is_success else 0}\n")
             
@@ -721,20 +721,15 @@ class PPOMetricsCallback(BaseCallback):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
           
-###############################################  
         # 创建CSV文件
         data_dir = os.path.join(LOG_DIR, "data")
-        self.csv_file = os.path.join(data_dir, f"ppo_metrics.csv")
-        #self.reward_analysis_file = os.path.join(data_dir, f"reward_decay.csv")
+        self.ppo_metrics_csv = os.path.join(data_dir, f"ppo_metrics.csv")
+
         
-        with open(self.csv_file, 'w', encoding='utf-8') as f:
+        with open(self.ppo_metrics_csv, 'w', encoding='utf-8') as f:
             header = ','.join(self.metrics_history.keys())
             f.write(f"{header}\n")
             
-        """with open(self.reward_analysis_file, 'w', encoding='utf-8') as f:
-            header = ','.join(self.reward_decay_analysis.keys())
-            f.write(f"{header}\n")"""
-###############################################
 
     def _on_step(self) -> bool:
         # 不需要每步执行操作
@@ -742,17 +737,72 @@ class PPOMetricsCallback(BaseCallback):
 
     def _on_rollout_end(self) -> None:
         # 结束一个rollout后，收集指标数据
+        logging.info("PPO指标回调：开始收集rollout结束时的指标")
+        
+        # 初始化本次要记录的指标值字典
+        metrics_values = {key: 0 for key in self.metrics_history.keys()}
+        
+        # 获取训练器属性（如果存在）
+        if hasattr(self.model, "logger"):
+            # 从模型的logger中获取最新记录的指标
+            logger_data = self.model.logger.name_to_value
+            
+            # 从logger中获取指标（如果存在）
+            for key in self.metrics_history.keys():
+                if key in logger_data:
+                    value = logger_data[key]
+                    self.metrics_history[key].append(value)
+                    metrics_values[key] = value
+                    logging.info(f"从logger获取指标: {key}={value}")
+        
+        # 从locals中获取指标（为后向兼容）
         for key in self.metrics_history.keys():
             if key in self.locals:
-                self.metrics_history[key].append(self.locals[key])
-                
+                value = self.locals[key]
+                self.metrics_history[key].append(value)
+                metrics_values[key] = value
+                logging.info(f"从locals获取指标: {key}={value}")
+        
+        # 对特定指标进行特殊处理
+        # 1. 获取总步数
+        if hasattr(self.model, "num_timesteps"):
+            metrics_values["total_timesteps"] = self.model.num_timesteps
+            self.metrics_history["total_timesteps"].append(self.model.num_timesteps)
+            logging.info(f"从model获取总步数: {self.model.num_timesteps}")
+        
+        # 2. 获取学习率
+        if hasattr(self.model, "learning_rate") and callable(self.model.learning_rate):
+            # 如果学习率是一个函数，计算当前值
+            try:
+                progress_remaining = 1.0 - (self.model.num_timesteps / self.model.total_timesteps)
+                current_lr = self.model.learning_rate(progress_remaining)
+                metrics_values["learning_rate"] = current_lr
+                self.metrics_history["learning_rate"].append(current_lr)
+                logging.info(f"计算当前学习率: {current_lr}")
+            except Exception as e:
+                logging.warning(f"计算学习率时出错: {e}")
+        
+        # 3. 获取FPS和已用时间
+        if hasattr(self.model, "_n_updates") and self.model._n_updates > 0:
+            # 估算FPS
+            if hasattr(self.model, "num_timesteps") and hasattr(self.model, "_start_time"):
+                time_elapsed = time.time() - self.model._start_time
+                fps = int(self.model.num_timesteps / (time_elapsed + 1e-8))
+                metrics_values["fps"] = fps
+                metrics_values["time_elapsed"] = time_elapsed
+                metrics_values["n_updates"] = self.model._n_updates
+                self.metrics_history["fps"].append(fps)
+                self.metrics_history["time_elapsed"].append(time_elapsed)
+                self.metrics_history["n_updates"].append(self.model._n_updates)
+                logging.info(f"计算性能指标: FPS={fps}, 时间={time_elapsed:.2f}秒, 更新次数={self.model._n_updates}")
+        
         # 分析奖励衰减
         if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
             last_episode = self.model.ep_info_buffer[-1]
             if 'r' in last_episode and 'l' in last_episode:
                 episode = len(self.reward_decay_analysis['episode']) + 1
                 reward = last_episode['r']
-                """episode_length = last_episode['l']
+                episode_length = last_episode['l']
                 
                 # 获取平均速度和车辆数量
                 avg_speed = 0
@@ -760,7 +810,7 @@ class PPOMetricsCallback(BaseCallback):
                 if 'avg_speed' in last_episode:
                     avg_speed = last_episode['avg_speed']
                 if 'cav_count' in last_episode:
-                    vehicle_count = last_episode['cav_count']"""
+                    vehicle_count = last_episode['cav_count']
                 
                 # 计算衰减率
                 decay_rate = 0
@@ -769,45 +819,55 @@ class PPOMetricsCallback(BaseCallback):
                     if prev_reward > 0:
                         decay_rate = (prev_reward - reward) / prev_reward
                     
-                """# 保存数据
+                # 保存数据
                 self.reward_decay_analysis['episode'].append(episode)
                 self.reward_decay_analysis['reward'].append(reward)
                 self.reward_decay_analysis['episode_length'].append(episode_length)
                 self.reward_decay_analysis['avg_speed'].append(avg_speed)
                 self.reward_decay_analysis['vehicle_count'].append(vehicle_count)
-                self.reward_decay_analysis['decay_rate'].append(decay_rate)"""
+                self.reward_decay_analysis['decay_rate'].append(decay_rate)
                 
                 # 如果衰减率超过阈值，记录警告
                 if decay_rate > 0.2:  # 衰减率超过20%
                     logging.error(f"奖励明显下降! 回合{episode}: 前值={prev_reward:.2f}, 当前值={reward:.2f}, 衰减率={decay_rate:.2f}")
                 
-                """# 将数据写入CSV
-                with open(self.reward_analysis_file, 'a', encoding='utf-8') as f:
-                    f.write(f"{episode},{reward},{episode_length},{avg_speed},{vehicle_count},{decay_rate}\n")"""
+                logging.info(f"记录奖励分析: 回合={episode}, 奖励={reward:.2f}, 步数={episode_length}")
         
         # 将当前指标写入CSV
-        metrics_values = []
-        for key in self.metrics_history.keys():
-            value = self.metrics_history[key][-1] if self.metrics_history[key] else 0
-            metrics_values.append(str(value))
-            
-        with open(self.csv_file, 'a', encoding='utf-8') as f:
-            f.write(','.join(metrics_values) + '\n')
+        with open(self.ppo_metrics_csv, 'a', encoding='utf-8') as f:
+            values_str = ','.join([str(metrics_values[key]) for key in self.metrics_history.keys()])
+            f.write(values_str + '\n')
+            logging.info(f"指标已写入CSV文件: {self.ppo_metrics_csv}")
         
-        # 打印格式化的训练指标表格
-        self._print_formatted_metrics()
-
-    def _print_formatted_metrics(self):
-        """按照指定格式打印训练指标"""
-        # 确保有指标数据
-        if not any(self.metrics_history.values()):
-            return
+        # 写入奖励分析数据
+        if len(self.reward_decay_analysis['episode']) > 0 and self.reward_decay_analysis['episode'][-1] > 0:
+            episode = self.reward_decay_analysis['episode'][-1]
+            reward = self.reward_decay_analysis['reward'][-1]
+            episode_length = self.reward_decay_analysis['episode_length'][-1]
+            avg_speed = self.reward_decay_analysis['avg_speed'][-1]
+            vehicle_count = self.reward_decay_analysis['vehicle_count'][-1]
+            decay_rate = self.reward_decay_analysis['decay_rate'][-1]
             
-        # 获取最新指标
-        latest_metrics = {}
-        for key, values in self.metrics_history.items():
-            if values:
-                latest_metrics[key] = values[-1]
+            with open(self.reward_analysis_file, 'a', encoding='utf-8') as f:
+                f.write(f"{episode},{reward},{episode_length},{avg_speed},{vehicle_count},{decay_rate}\n")
+            logging.info(f"奖励分析数据已写入: {self.reward_analysis_file}")
+            
+        # 打印格式化的训练指标表格
+        self._print_formatted_metrics(metrics_values)
+
+    def _print_formatted_metrics(self, metrics=None):
+        """按照指定格式打印训练指标"""
+        # 如果没有提供指标，使用历史记录中的最新值
+        if metrics is None:
+            if not any(self.metrics_history.values()):
+                return
+            
+            metrics = {}
+            for key, values in self.metrics_history.items():
+                if values:
+                    metrics[key] = values[-1]
+                else:
+                    metrics[key] = 0
         
         # 获取回合信息
         ep_len_mean = 0
@@ -842,16 +902,21 @@ class PPOMetricsCallback(BaseCallback):
         # 选择重要的指标进行打印
         key_metrics = ['learning_rate', 'loss', 'approx_kl', 'explained_variance', 'entropy_loss', 'clip_fraction']
         for key in key_metrics:
-            if key in latest_metrics:
-                logging.info(f"  {key}: {latest_metrics[key]:.6f}")
+            if key in metrics and metrics[key] != 0:  # 只打印非零值
+                logging.info(f"  {key}: {metrics[key]:.6f}")
+            else:
+                logging.info(f"  {key}: N/A")
         
         # 打印性能指标
-        if 'fps' in latest_metrics:
-            logging.info(f"性能: {latest_metrics['fps']:.1f} FPS")
+        if 'fps' in metrics and metrics['fps'] > 0:
+            logging.info(f"性能: {metrics['fps']:.1f} FPS")
+        else:
+            logging.info("性能: N/A")
         
         # 打印进度
-        if 'total_timesteps' in latest_metrics and 'time_elapsed' in latest_metrics:
-            logging.info(f"进度: 总步数={latest_metrics['total_timesteps']} | 已用时间={latest_metrics['time_elapsed']:.2f}秒")
+        if 'total_timesteps' in metrics:
+            time_str = f"{metrics['time_elapsed']:.2f}秒" if 'time_elapsed' in metrics and metrics['time_elapsed'] > 0 else "N/A"
+            logging.info(f"进度: 总步数={metrics['total_timesteps']} | 已用时间={time_str}")
         
         logging.info("=" * 50)
 
