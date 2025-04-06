@@ -10,7 +10,7 @@ timeout /t 2 /nobreak >nul
 
 REM Generate sustainable traffic flow
 echo Generating traffic...
-python generate_random_traffic.py --main_prob 0.3 --ramp_prob 0.2 --cav_prob 0.5 --duration 3600 --speed 30.0
+python generate_random_traffic.py --main_prob 0.3 --ramp_prob 0.2 --cav_prob 0.5 --duration 3600 --speed 15
 echo Traffic generation completed
 
 REM Wait a moment to ensure resources are freed
@@ -19,10 +19,10 @@ timeout /t 3 /nobreak >nul
 
 REM Run optimized training script
 echo Starting training...
-python train.py --mode train --total_timesteps 20000 --learning_rate 1e-3 --min_learning_rate 1e-5 --lr_schedule linear --episode_length 15000 --n_steps 2048 --batch_size 128 --n_epochs 8 --ent_coef 0.01 --max_grad_norm 0.5 --action_scale 10.0 --max_speed 30.0
+python train.py --mode train --total_timesteps 1000000 --learning_rate 1e-3 --min_learning_rate 1e-5 --lr_schedule linear --episode_length 15000 --n_steps 128 --batch_size 128 --n_epochs 8 --ent_coef 0.01 --max_grad_norm 0.5 --action_scale 1.0 --max_speed 15.0
 echo Training completed
 
-REM 自动绘图
+REM auto plot
 echo Running speed analysis...
 python analyze_speed.py --show
 

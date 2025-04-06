@@ -50,7 +50,7 @@ console_handler.setFormatter(log_formatter)
 root_logger.addHandler(console_handler)
 
 class SumoMergeEnv(gym.Env):
-    def __init__(self, cfg_path=None, gui=False, need_reset=True, max_episode_length=10000, action_scale=10.0, max_speed=30.0):
+    def __init__(self, cfg_path=None, gui=False, need_reset=True, max_episode_length=10000, action_scale=10.0, max_speed=15.0):
         super(SumoMergeEnv, self).__init__()
         # 获取配置文件路径
         if cfg_path is None:
@@ -439,7 +439,7 @@ class SumoMergeEnv(gym.Env):
                     raise RuntimeError(f"无法启动SUMO: {e}")
 
         # 预热阶段：运行10秒（约100步），让车流稳定下来
-        prewarming_steps = 100  # 10秒（每步0.1秒）
+        prewarming_steps = 100  # 30秒（每步0.1秒）
         logging.info(f"开始环境预热: {prewarming_steps}步")
         
         # 初始化车辆列表
@@ -584,6 +584,7 @@ class TrainingCallback(BaseCallback):
         # 用于记录当前episode的统计数据
         self.current_speeds = []
         self.current_vehicle_counts = []
+        self.current_rewards = []  # 新增：记录每步奖励，用于计算平均奖励
         
         # 确保结果目录存在
         if not os.path.exists(save_dir):
@@ -597,18 +598,24 @@ class TrainingCallback(BaseCallback):
         data_dir = os.path.join(LOG_DIR, "data")
         self.training_episodes_csv = os.path.join(data_dir, f"training_episodes_{timestamp}.csv")
 
-        # 创建并写入CSV文件
+        # 创建并写入CSV文件，添加平均奖励列
         with open(self.training_episodes_csv, 'w', encoding='utf-8') as f:
-            f.write("episode,reward,length,avg_speed,avg_vehicle_count,success\n")
+            f.write("episode,total_reward,avg_reward,length,avg_speed,avg_vehicle_count,success\n")
 
     def _on_training_start(self) -> None:
         # 不再记录INFO级别的日志
         pass
 
     def _on_step(self) -> bool:
+        # 获取当前步的奖励
+        reward = self.locals["rewards"][0]
+        
         # 累积奖励和步数
-        self.current_episode_reward += self.locals["rewards"][0]
+        self.current_episode_reward += reward
         self.current_episode_length += 1
+        
+        # 保存当前步奖励到列表
+        self.current_rewards.append(reward)
         
         # 收集当前步骤的统计信息
         info = self.locals["infos"][0]
@@ -634,17 +641,20 @@ class TrainingCallback(BaseCallback):
             self.average_speeds.append(avg_speed)
             self.vehicle_counts.append(avg_vehicle_count)
             
+            # 计算当前回合的平均奖励
+            avg_reward = sum(self.current_rewards) / len(self.current_rewards) if self.current_rewards else 0
+            
             # 判断回合是否成功（例如，如果达到最大步数则视为成功）
             is_success = info.get("is_success", False)
             self.success_rates.append(1 if is_success else 0)
             
-            # 修改：使用ERROR级别记录回合完成信息
+            # 修改：使用ERROR级别记录回合完成信息，添加平均奖励
             if self.episode_count % 5 == 0:  # 每5回合输出一次，减少输出频率
-                logging.error(f"回合 {self.episode_count} 完成: 奖励={self.current_episode_reward:.2f}, 平均速度={avg_speed:.2f}")
+                logging.error(f"回合 {self.episode_count} 完成: 总奖励={self.current_episode_reward:.2f}, 平均奖励={avg_reward:.4f}, 平均速度={avg_speed:.2f}")
             
-            # 将结果写入CSV文件
+            # 将结果写入CSV文件，添加平均奖励列
             with open(self.training_episodes_csv, 'a', encoding='utf-8') as f:
-                f.write(f"{self.episode_count},{self.current_episode_reward:.6f},{self.current_episode_length},"
+                f.write(f"{self.episode_count},{self.current_episode_reward:.6f},{avg_reward:.6f},{self.current_episode_length},"
                        f"{avg_speed:.6f},{avg_vehicle_count:.6f},{1 if is_success else 0}\n")
             
             # 重置当前回合的统计信息
@@ -652,6 +662,7 @@ class TrainingCallback(BaseCallback):
             self.current_episode_length = 0
             self.current_speeds = []
             self.current_vehicle_counts = []
+            self.current_rewards = []
             
         
         # 如果达到保存频率且不是训练结束，只保存临时文件，不保存模型
@@ -717,6 +728,9 @@ class PPOMetricsCallback(BaseCallback):
             'decay_rate': []  # 奖励衰减率
         }
         
+        # 添加存储总步数的属性
+        self.total_timesteps = 0
+        
         # 确保结果目录存在
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
@@ -730,6 +744,29 @@ class PPOMetricsCallback(BaseCallback):
             header = ','.join(self.metrics_history.keys())
             f.write(f"{header}\n")
             
+    def _on_training_start(self) -> None:
+        """训练开始时获取总步数"""
+        # 尝试从args中获取总步数
+        if hasattr(self.model, "num_timesteps"):
+            logging.info(f"训练开始时步数: {self.model.num_timesteps}")
+            
+        # 尝试从train函数获取total_timesteps
+        try:
+            # 尝试从模型的kwargs中获取total_timesteps
+            if hasattr(self.model, "_total_timesteps"):
+                self.total_timesteps = self.model._total_timesteps
+                logging.info(f"获取到总训练步数: {self.total_timesteps}")
+            else:
+                # 从训练元数据文件中获取total_timesteps
+                metadata_file = os.path.join(LOG_DIR, "metadata.json")
+                if os.path.exists(metadata_file):
+                    with open(metadata_file, 'r', encoding='utf-8') as f:
+                        metadata = json.load(f)
+                        if 'total_timesteps' in metadata:
+                            self.total_timesteps = metadata['total_timesteps']
+                            logging.info(f"从元数据文件获取总训练步数: {self.total_timesteps}")
+        except Exception as e:
+            logging.warning(f"获取总训练步数时出错: {e}")
 
     def _on_step(self) -> bool:
         # 不需要每步执行操作
@@ -774,11 +811,18 @@ class PPOMetricsCallback(BaseCallback):
         if hasattr(self.model, "learning_rate") and callable(self.model.learning_rate):
             # 如果学习率是一个函数，计算当前值
             try:
-                progress_remaining = 1.0 - (self.model.num_timesteps / self.model.total_timesteps)
-                current_lr = self.model.learning_rate(progress_remaining)
-                metrics_values["learning_rate"] = current_lr
-                self.metrics_history["learning_rate"].append(current_lr)
-                logging.info(f"计算当前学习率: {current_lr}")
+                if self.total_timesteps > 0:
+                    progress_remaining = 1.0 - (self.model.num_timesteps / self.total_timesteps)
+                    current_lr = self.model.learning_rate(progress_remaining)
+                    metrics_values["learning_rate"] = current_lr
+                    self.metrics_history["learning_rate"].append(current_lr)
+                    logging.info(f"计算当前学习率: {current_lr}, 进度: {1.0-progress_remaining:.2%}")
+                else:
+                    # 如果没有总步数，直接使用学习率为1.0计算
+                    current_lr = self.model.learning_rate(1.0)
+                    metrics_values["learning_rate"] = current_lr
+                    self.metrics_history["learning_rate"].append(current_lr)
+                    logging.info(f"使用默认进度计算学习率: {current_lr}")
             except Exception as e:
                 logging.warning(f"计算学习率时出错: {e}")
         
@@ -795,7 +839,7 @@ class PPOMetricsCallback(BaseCallback):
                 self.metrics_history["time_elapsed"].append(time_elapsed)
                 self.metrics_history["n_updates"].append(self.model._n_updates)
                 logging.info(f"计算性能指标: FPS={fps}, 时间={time_elapsed:.2f}秒, 更新次数={self.model._n_updates}")
-        
+
         # 分析奖励衰减
         if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
             last_episode = self.model.ep_info_buffer[-1]
@@ -838,19 +882,6 @@ class PPOMetricsCallback(BaseCallback):
             values_str = ','.join([str(metrics_values[key]) for key in self.metrics_history.keys()])
             f.write(values_str + '\n')
             logging.info(f"指标已写入CSV文件: {self.ppo_metrics_csv}")
-        
-        # 写入奖励分析数据
-        if len(self.reward_decay_analysis['episode']) > 0 and self.reward_decay_analysis['episode'][-1] > 0:
-            episode = self.reward_decay_analysis['episode'][-1]
-            reward = self.reward_decay_analysis['reward'][-1]
-            episode_length = self.reward_decay_analysis['episode_length'][-1]
-            avg_speed = self.reward_decay_analysis['avg_speed'][-1]
-            vehicle_count = self.reward_decay_analysis['vehicle_count'][-1]
-            decay_rate = self.reward_decay_analysis['decay_rate'][-1]
-            
-            with open(self.reward_analysis_file, 'a', encoding='utf-8') as f:
-                f.write(f"{episode},{reward},{episode_length},{avg_speed},{vehicle_count},{decay_rate}\n")
-            logging.info(f"奖励分析数据已写入: {self.reward_analysis_file}")
             
         # 打印格式化的训练指标表格
         self._print_formatted_metrics(metrics_values)
@@ -870,20 +901,29 @@ class PPOMetricsCallback(BaseCallback):
                     metrics[key] = 0
         
         # 获取回合信息
+        # 这里获取*当前回合*的平均奖励，而不是所有回合的平均
         ep_len_mean = 0
         ep_rew_mean = 0
         success_rate = 0
+        current_episode_reward = 0
+        current_episode_length = 0
         
         if hasattr(self.model, 'ep_info_buffer') and self.model.ep_info_buffer:
-            # 计算平均回合长度和奖励
+            # 只获取最新回合的信息
+            latest_ep_info = self.model.ep_info_buffer[-1]
+            
+            if 'r' in latest_ep_info and 'l' in latest_ep_info:
+                current_episode_reward = latest_ep_info['r']
+                current_episode_length = latest_ep_info['l']
+                ep_rew_mean = current_episode_reward / current_episode_length if current_episode_length > 0 else 0
+                
+            # 仍然计算所有回合的平均长度和成功率（这些不需要修改）
             ep_lengths = [ep_info['l'] for ep_info in self.model.ep_info_buffer if 'l' in ep_info]
             ep_rewards = [ep_info['r'] for ep_info in self.model.ep_info_buffer if 'r' in ep_info]
             successes = [1 if ep_info.get('is_success', False) else 0 for ep_info in self.model.ep_info_buffer]
             
             if ep_lengths:
                 ep_len_mean = sum(ep_lengths) / len(ep_lengths)
-            if ep_rewards:
-                ep_rew_mean = sum(ep_rewards) / len(ep_rewards)
             if successes:
                 success_rate = sum(successes) / len(successes)
         
@@ -892,17 +932,18 @@ class PPOMetricsCallback(BaseCallback):
         logging.info("训练指标摘要:")
         logging.info("-" * 50)
         
-        # 打印回合统计信息
-        logging.info(f"回合统计: 平均长度={ep_len_mean:.1f} | 平均奖励={ep_rew_mean:.4f} | 成功率={success_rate:.2f}")
+        # 打印回合统计信息 - 更新为显示当前回合的平均奖励
+        logging.info(f"回合统计: 平均长度={ep_len_mean:.1f} | 当前回合奖励={current_episode_reward:.4f} | 当前回合平均奖励={ep_rew_mean:.4f} | 成功率={success_rate:.2f}")
         
         # 打印关键PPO指标
         logging.info("-" * 50)
         logging.info("PPO指标:")
         
-        # 选择重要的指标进行打印
+        # 选择重要的指标进行打印，修改条件使其更易于显示指标
         key_metrics = ['learning_rate', 'loss', 'approx_kl', 'explained_variance', 'entropy_loss', 'clip_fraction']
         for key in key_metrics:
-            if key in metrics and metrics[key] != 0:  # 只打印非零值
+            # 使用 is not None 替代 != 0，更好地处理浮点数
+            if key in metrics and metrics[key] is not None:
                 logging.info(f"  {key}: {metrics[key]:.6f}")
             else:
                 logging.info(f"  {key}: N/A")
@@ -973,7 +1014,7 @@ def train(
     lr_schedule="linear",
     episode_length=15000,
     action_scale=10.0,
-    max_speed=30.0,
+    max_speed=15.0,
     n_steps=2048,
     batch_size=64,
     n_epochs=10,
@@ -1173,7 +1214,7 @@ def test(
     gui=True, 
     episode_length=10000, 
     action_scale=10.0, 
-    max_speed=30.0, 
+    max_speed=15.0, 
     test_episodes=5
 ):
     """测试保存的模型
@@ -1303,7 +1344,7 @@ def main():
     parser.add_argument('--save_dir', type=str, default='./results', help='结果保存目录')
     parser.add_argument('--episode_length', type=int, default=10000, help='每回合最大步数')
     parser.add_argument('--action_scale', type=float, default=10.0, help='动作缩放因子')
-    parser.add_argument('--max_speed', type=float, default=30.0, help='最大车速')
+    parser.add_argument('--max_speed', type=float, default=15.0, help='最大车速')
     
     # 训练特定参数
     parser.add_argument('--total_timesteps', type=int, default=300000, help='训练总步数')
