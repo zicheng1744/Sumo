@@ -69,10 +69,10 @@ def generate_routefile(probs, speed, duration, accel, decel, max_vehicles=64):
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Generate continuous traffic for SUMO")
-    parser.add_argument("--main_prob", type=float, default=0.3, help="Main road vehicle generation probability")
-    parser.add_argument("--ramp_prob", type=float, default=0.2, help="Ramp vehicle generation probability")
+    parser.add_argument("--main_prob", type=float, default=0.7, help="Main road vehicle generation probability")
+    parser.add_argument("--ramp_prob", type=float, default=0.3, help="Ramp vehicle generation probability")
     parser.add_argument("--cav_prob", type=float, default=0.5, help="CAV proportion")
-    parser.add_argument("--speed", type=float, default=30.0, help="Maximum vehicle speed")
+    parser.add_argument("--speed", type=float, default=15.0, help="Maximum vehicle speed")
     parser.add_argument("--duration", type=int, default=3600, help="Simulation duration (seconds)")
     parser.add_argument("--accel", type=float, default=3.0, help="Acceleration")
     parser.add_argument("--decel", type=float, default=5.0, help="Deceleration")

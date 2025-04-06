@@ -439,7 +439,7 @@ class SumoMergeEnv(gym.Env):
                     raise RuntimeError(f"无法启动SUMO: {e}")
 
         # 预热阶段：运行10秒（约100步），让车流稳定下来
-        prewarming_steps = 100  # 30秒（每步0.1秒）
+        prewarming_steps = 300  # 30秒（每步0.1秒）
         logging.info(f"开始环境预热: {prewarming_steps}步")
         
         # 初始化车辆列表

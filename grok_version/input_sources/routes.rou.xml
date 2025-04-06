@@ -13,6 +13,6 @@
     <route id="ramp" edges="rm mc ce" />
 
     <!-- Use Flow Tags for Continuous Traffic -->
-    <flow id="main_flow" route="main" begin="0" end="3600" probability="0.3" type="mixed" departSpeed="max"/>
-    <flow id="ramp_flow" route="ramp" begin="0" end="3600" probability="0.2" type="mixed" departSpeed="10"/>
+    <flow id="main_flow" route="main" begin="0" end="200000" probability="0.7" type="mixed" departSpeed="max"/>
+    <flow id="ramp_flow" route="ramp" begin="0" end="200000" probability="0.3" type="mixed" departSpeed="10"/>
 </routes>
