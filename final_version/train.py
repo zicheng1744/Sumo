@@ -69,7 +69,7 @@ class SumoMergeEnv(gym.Env):
         self.cav_ids = []
         self.hdv_ids = []
         self._is_initialized = False
-        self.max_cavs = 64   # 最大支持的 CAV 数量
+        self.max_cavs = 64  # 最大支持的 CAV 数量
         self.need_reset = need_reset
         self.action_scale = action_scale  # 动作缩放因子，影响速度变化幅度
         self.max_speed = max_speed  # 最大速度限制
@@ -96,17 +96,6 @@ class SumoMergeEnv(gym.Env):
         os.makedirs(data_dir, exist_ok=True)  # 确保data目录存在
         self.speed_file = os.path.join(data_dir, f"speed_data_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
         self.total_steps = 0  # 总步数计数器
-        
-        # 新增：吞吐量统计相关变量
-        self.throughput_window_size = 100  # 每100步统计一次吞吐量
-        self.current_window_arrived = 0  # 当前窗口内驶出的车辆数
-        self.total_arrived = 0  # 总共驶出的车辆数
-        self.throughput_stats = []  # 记录所有窗口的吞吐量
-        self.throughput_file = os.path.join(data_dir, f"throughput_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
-        
-        # 创建吞吐量CSV文件并写入表头
-        with open(self.throughput_file, 'w', encoding='utf-8') as f:
-            f.write("window,step,throughput,cumulative_throughput\n")
         
         # 动作历史记录
         self.actions_history = []
@@ -295,18 +284,6 @@ class SumoMergeEnv(gym.Env):
         self.current_step += 1
         self.total_steps += 1  # 累加总步数
         
-        # 更新吞吐量统计 - 获取当前步骤中驶出的车辆数
-        arrived_vehicles = traci.simulation.getArrivedNumber()
-        self.current_window_arrived += arrived_vehicles
-        self.total_arrived += arrived_vehicles
-        
-        # 每100步记录一次吞吐量
-        if self.total_steps % self.throughput_window_size == 0:
-            window_number = self.total_steps // self.throughput_window_size
-            self.throughput_stats.append(self.current_window_arrived)
-            self.record_throughput(window_number, self.current_window_arrived)
-            self.current_window_arrived = 0  # 重置当前窗口计数
-        
         # 更新车辆ID列表
         self._update_vehicle_ids()
         
@@ -411,11 +388,6 @@ class SumoMergeEnv(gym.Env):
             'vehicle_counts': [],
             'lead_cav_speeds': []  # 重置领头CAV速度统计
         }
-        
-        # 重置吞吐量统计
-        self.current_window_arrived = 0
-        self.total_arrived = 0
-        self.throughput_stats = []
         
         # 重置动作历史
         self.actions_history = []
@@ -576,12 +548,6 @@ class SumoMergeEnv(gym.Env):
         # 无论如何都要确保环境标记为未初始化
         self._is_initialized = False
     
-    def record_throughput(self, window, throughput):
-        """记录吞吐量数据到CSV文件"""
-        with open(self.throughput_file, 'a', encoding='utf-8') as f:
-            f.write(f"{window},{self.total_steps},{throughput},{self.total_arrived}\n")
-        logging.info(f"吞吐量统计: 窗口={window}, 步数={self.total_steps}, 吞吐量={throughput}, 累计={self.total_arrived}")
-
     def record_speed_data(self, avg_speed):
         """记录当前步骤的平均车速数据到CSV文件"""
         # 写入CSV文件
@@ -623,6 +589,18 @@ class TrainingCallback(BaseCallback):
         # 确保结果目录存在
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
+        
+        # 创建CSV文件记录每回合的结果
+        # 修改：使用当前时间戳创建唯一的CSV文件名
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # 使用LOG_DIR作为CSV文件的存储路径
+        data_dir = os.path.join(LOG_DIR, "data")
+        self.training_episodes_csv = os.path.join(data_dir, f"training_episodes_{timestamp}.csv")
+
+        # 创建并写入CSV文件，添加平均奖励列
+        with open(self.training_episodes_csv, 'w', encoding='utf-8') as f:
+            f.write("episode,total_reward,avg_reward,length,avg_speed,avg_vehicle_count,success\n")
 
     def _on_training_start(self) -> None:
         # 不再记录INFO级别的日志
@@ -674,12 +652,18 @@ class TrainingCallback(BaseCallback):
             if self.episode_count % 5 == 0:  # 每5回合输出一次，减少输出频率
                 logging.error(f"回合 {self.episode_count} 完成: 总奖励={self.current_episode_reward:.2f}, 平均奖励={avg_reward:.4f}, 平均速度={avg_speed:.2f}")
             
+            # 将结果写入CSV文件，添加平均奖励列
+            with open(self.training_episodes_csv, 'a', encoding='utf-8') as f:
+                f.write(f"{self.episode_count},{self.current_episode_reward:.6f},{avg_reward:.6f},{self.current_episode_length},"
+                       f"{avg_speed:.6f},{avg_vehicle_count:.6f},{1 if is_success else 0}\n")
+            
             # 重置当前回合的统计信息
             self.current_episode_reward = 0
             self.current_episode_length = 0
             self.current_speeds = []
             self.current_vehicle_counts = []
             self.current_rewards = []
+            
         
         # 如果达到保存频率且不是训练结束，只保存临时文件，不保存模型
         # 模型只在训练结束时保存
@@ -750,6 +734,15 @@ class PPOMetricsCallback(BaseCallback):
         # 确保结果目录存在
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
+          
+        # 创建CSV文件
+        data_dir = os.path.join(LOG_DIR, "data")
+        self.ppo_metrics_csv = os.path.join(data_dir, f"ppo_metrics.csv")
+
+        
+        with open(self.ppo_metrics_csv, 'w', encoding='utf-8') as f:
+            header = ','.join(self.metrics_history.keys())
+            f.write(f"{header}\n")
             
     def _on_training_start(self) -> None:
         """训练开始时获取总步数"""
@@ -883,6 +876,12 @@ class PPOMetricsCallback(BaseCallback):
                     logging.error(f"奖励明显下降! 回合{episode}: 前值={prev_reward:.2f}, 当前值={reward:.2f}, 衰减率={decay_rate:.2f}")
                 
                 logging.info(f"记录奖励分析: 回合={episode}, 奖励={reward:.2f}, 步数={episode_length}")
+        
+        # 将当前指标写入CSV
+        with open(self.ppo_metrics_csv, 'a', encoding='utf-8') as f:
+            values_str = ','.join([str(metrics_values[key]) for key in self.metrics_history.keys()])
+            f.write(values_str + '\n')
+            logging.info(f"指标已写入CSV文件: {self.ppo_metrics_csv}")
             
         # 打印格式化的训练指标表格
         self._print_formatted_metrics(metrics_values)

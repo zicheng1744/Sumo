@@ -1,0 +1,19 @@
+预测试会话: 20250409_124637
+==================================================
+预测试参数:
+  timestamp: 20250409_124637
+  gui: True
+  episode_length: 10000
+  max_speed: 15.0
+
+预测试结果:
+  总步数: 324
+  平均奖励: 0.28
+  平均速度: 2.05 m/s
+  平均CAV数量: 23.77
+  平均HDV数量: 14.96
+
+文件位置:
+  日志: pretest_results\pretest_session_20250409_124630\pretest_session_20250409_124637\logs\pretest_log.txt
+  图表: pretest_results\pretest_session_20250409_124630\pretest_session_20250409_124637\plots
+  数据: pretest_results\pretest_session_20250409_124630\pretest_session_20250409_124637\data

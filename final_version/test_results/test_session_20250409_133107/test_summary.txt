@@ -1,0 +1,28 @@
+测试会话: 20250409_133107
+==================================================
+测试参数:
+  timestamp: 20250409_133107
+  model_path: C:\Users\18576\Sumo\final_version\results\training_session_20250406_151319\models\final_model.zip
+  gui: True
+  episode_length: 10000
+  action_scale: 10.0
+  max_speed: 15.0
+  test_episodes: 1
+  pretest_session_dir: pretest_results\pretest_session_
+
+测试结果:
+  回合数: 1
+  平均奖励: 5418.30
+  平均速度: 6.70 m/s
+  平均CAV数量: 18.11
+  平均HDV数量: 18.28
+  总步数: 10000
+
+回合详情:
+  回合 1: 奖励=5418.30, 平均速度=6.70 m/s
+
+文件位置:
+  日志: ./test_results\test_session_20250409_133107\logs\test_log.txt
+  图表: ./test_results\test_session_20250409_133107\plots
+  数据: ./test_results\test_session_20250409_133107\data
+  比较: ./test_results\test_session_20250409_133107\comparison
