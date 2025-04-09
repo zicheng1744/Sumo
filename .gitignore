@@ -1,4 +1,10 @@
 __pycache__/
 *.log
-test*
 tempCodeRunnerFile*
+logs/
+models/
+*.zip
+ppo_tensorboard_test/
+results/
+*.xml
+

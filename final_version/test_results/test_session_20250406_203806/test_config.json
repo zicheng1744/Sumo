@@ -1,0 +1,9 @@
+{
+    "timestamp": "20250406_203806",
+    "model_path": ".\\results\\training_session_20250406_151319\\models\\final_model.zip",
+    "gui": true,
+    "episode_length": 10000,
+    "action_scale": 10.0,
+    "max_speed": 15.0,
+    "test_episodes": 5
+}
