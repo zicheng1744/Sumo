@@ -1,0 +1,6 @@
+window,step,throughput,cumulative_throughput
+1,100,4,4
+2,200,5,9
+3,300,1,1
+4,400,5,6
+5,500,5,11
