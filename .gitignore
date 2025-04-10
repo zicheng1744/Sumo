@@ -2,9 +2,9 @@ __pycache__/
 *.log
 tempCodeRunnerFile*
 logs/
-models/
+target_model/
 *.zip
 ppo_tensorboard_test/
-results/
+final_version/
 *.xml
 
