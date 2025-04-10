@@ -1,0 +1,34 @@
+训练会话: 20250407_002343
+==================================================
+参数:
+  timestamp: 20250407_002343
+  total_timesteps: 1000000
+  learning_rate: 0.001
+  min_learning_rate: 1e-05
+  lr_schedule: linear
+  episode_length: 100000
+  action_scale: 1.0
+  max_speed: 15.0
+  n_steps: 128
+  batch_size: 128
+  n_epochs: 8
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01
+  max_grad_norm: 0.5
+  policy: MlpPolicy
+  gui: False
+
+训练结果:
+  总回合数: 10
+  总步数: 1000064
+  平均回合奖励: 48234.61
+  最高回合奖励: 91530.12
+  最低回合奖励: 779.46
+
+文件位置:
+  日志: ./results/training_session_20250407_002343\training_20250407_002343.log
+  模型: ./results/training_session_20250407_002343\models\final_model
+  图表: ./results/training_session_20250407_002343\plots
+  数据: ./results/training_session_20250407_002343\data
