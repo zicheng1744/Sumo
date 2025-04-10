@@ -2,10 +2,10 @@
     <!-- Vehicle Type Distribution for Flow -->
     <vTypeDistribution id="mixed">
         <vType id="CAV" accel="3.0" decel="5.0" sigma="0.0" length="5" minGap="0.8" tau="0.5" maxSpeed="15.0" 
-               carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0" color="1,0,0" probability="0.1"/>
+               carFollowingModel="IDM" lcStrategic="1" lcCooperative="1" lcAssertive="0.5" lcImpatience="0.0" lcKeepRight="0" color="1,0,0" probability="0.3"/>
         <vType id="HDV" accel="3.0" decel="5.0" sigma="0.5" length="5" minGap="2.5" tau="1.2" maxSpeed="15.0" 
                desiredMaxSpeed="15.0" speedFactor="normc(1,0.2,0.2,2)" carFollowingModel="Krauss" 
-               lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5" probability="0.9"/>
+               lcStrategic="0.3" lcAssertive="0.5" lcCooperative="0.2" lcImpatience="0.5" probability="0.7"/>
     </vTypeDistribution>
 
     <!-- Route Definitions -->
