@@ -5,6 +5,5 @@ logs/
 models/
 *.zip
 ppo_tensorboard_test/
-results/
 *.xml
 
