@@ -10,7 +10,7 @@ timeout /t 2 /nobreak >nul
 
 REM Generate sustainable traffic flow
 echo Generating traffic...
-python generate_random_traffic.py --main_prob 0.7 --ramp_prob 0.3 --cav_prob 0.2 --duration 1000000 --speed 15.0
+python generate_random_traffic.py --main_prob 0.7 --ramp_prob 0.3 --cav_prob 0.5 --duration 1000000 --speed 15.0
 echo Traffic generation completed
 
 REM Wait a moment to ensure resources are freed
