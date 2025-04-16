@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 from datetime import datetime
+from scipy.signal import savgol_filter  # 添加savgol_filter导入
 
 def find_latest_speed_data():
     """查找最新的速度数据文件"""
@@ -57,43 +58,77 @@ def load_speed_data(file_path):
         print(f"加载速度数据时出错: {e}")
         return None
 
-def plot_speed_vs_step(df, save_dir=None):
+def plot_speed_vs_step(df, save_dir=None, use_savgol=False, use_ewma=True):
     """绘制平均车速与步数的关系图"""
     if df is None or df.empty:
         print("无数据可绘制")
         return
         
     plt.figure(figsize=(12, 6))
-    plt.plot(df['step'], df['avg_speed'])
-    plt.title('Average Speed vs Training Steps')
-    plt.xlabel('Step')
-    plt.ylabel('Average Speed (m/s)')
-    plt.grid(True)
     
-    # 添加移动平均线
-    window_size = min(100, len(df) // 10) if len(df) > 100 else 10
-    if window_size > 1:
-        df['moving_avg'] = df['avg_speed'].rolling(window=window_size).mean()
-        plt.plot(df['step'][window_size-1:], df['moving_avg'][window_size-1:], 'r--', 
-                label=f'{window_size}-Step Moving Average')
-        plt.legend()
+    # 绘制原始数据
+    plt.plot(df['step'], df['avg_speed'], color='#1f77b4', alpha=0.3, label='原始数据')
     
-    # 保存图表到最新训练会话的plots文件夹
+    # 计算多种平滑结果
+    window_size = max(200, len(df) // 5)
+    df['moving_avg'] = df['avg_speed'].rolling(window=window_size).mean()
+    
+    if use_ewma:
+        df['ewma'] = df['avg_speed'].ewm(alpha=0.05).mean()
+    
+    if use_savgol and len(df) > 501:  # 确保数据量足够应用Savitzky-Golay滤波
+        window_length = min(501, len(df) // 2)
+        # 确保window_length是奇数
+        if window_length % 2 == 0:
+            window_length -= 1
+        df['savgol'] = savgol_filter(df['avg_speed'], window_length=window_length, polyorder=3)
+    
+    # 绘制平滑曲线
+    plt.plot(df['step'], df['moving_avg'], color='#ff7f0e', linewidth=2, label=f'{window_size}步移动平均')
+    
+    if use_ewma:
+        plt.plot(df['step'], df['ewma'], color='#2ca02c', linewidth=2, linestyle='--', label='指数加权移动平均')
+    
+    if use_savgol and 'savgol' in df.columns:
+        plt.plot(df['step'], df['savgol'], color='#d62728', linewidth=2, linestyle='-.', label='Savitzky-Golay滤波')
+    
+    # 添加置信区间
+    std = df['avg_speed'].rolling(window=window_size).std()
+    plt.fill_between(df['step'][window_size-1:], 
+                     df['moving_avg'][window_size-1:] - std[window_size-1:],
+                     df['moving_avg'][window_size-1:] + std[window_size-1:],
+                     color='#ff7f0e', alpha=0.2)
+    
+    # 图表美化
+    plt.title('训练步数与平均车速关系', fontsize=16)
+    plt.xlabel('训练步数', fontsize=14)
+    plt.ylabel('平均车速 (m/s)', fontsize=14)
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.legend(fontsize=12)
+    plt.tick_params(labelsize=12)
+    plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))  # 科学计数法显示x轴
+    plt.ylim(bottom=0)  # 设置y轴下限为0
+    plt.tight_layout()
+    
+    # 创建plots目录（如果不存在）
     if save_dir:
         plots_dir = os.path.join(save_dir, "plots")
-        os.makedirs(plots_dir, exist_ok=True)
+        if not os.path.exists(plots_dir):
+            os.makedirs(plots_dir)
+        
         save_path = os.path.join(plots_dir, f"speed_vs_step_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
-        plt.savefig(save_path)
-        print(f"图表已保存至: {save_path}")
-    
-    plt.tight_layout()
-    plt.show()
+        plt.savefig(save_path, dpi=300)
+        print(f"图表已保存到: {save_path}")
+    else:
+        plt.show()
 
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='分析SUMO训练中的平均车速数据')
     parser.add_argument('--file', type=str, help='指定速度数据文件路径，不提供则使用最新的')
     parser.add_argument('--show', action='store_true', help='显示图表(默认只保存不显示)')
+    parser.add_argument('--savgol', action='store_true', help='使用Savitzky-Golay滤波')
+    parser.add_argument('--no-ewma', action='store_true', help='不使用指数加权移动平均')
     args = parser.parse_args()
     
     # 获取速度数据文件
@@ -114,8 +149,8 @@ def main():
         import matplotlib
         matplotlib.use('Agg')  # 使用非交互式后端
     
-    # 分析和绘图，只绘制平均速度与步数关系图
-    plot_speed_vs_step(df, save_dir)
+    # 分析和绘图，传递滤波器选项
+    plot_speed_vs_step(df, save_dir, use_savgol=args.savgol, use_ewma=not args.no_ewma)
     
     print(f"\n分析完成。图表已保存到 {save_dir} 目录")
 

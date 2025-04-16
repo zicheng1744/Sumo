@@ -39,6 +39,6 @@ def calculate_average_speed(csv_path):
 
 if __name__ == "__main__":
     
-    csv_path = "grok_version/results/training_session_20250409_010111/data/speed_data_20250409_010111.csv"
+    csv_path = "C:/Users/18576/Sumo/grok_version/analysis/05/data/speed_data.csv"
         
     calculate_average_speed(csv_path)
